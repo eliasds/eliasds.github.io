@@ -59,12 +59,21 @@
             <div class="ear-split">
               <div class="ear ear-left">
                 <span class="ear-label">Left ear</span>
-                <span class="ear-stream">Music</span>
+                <div class="ear-streams">
+                  <span class="ear-stream">Music</span>
+                </div>
               </div>
+              <button type="button" class="ear-swap-btn" aria-label="Swap left and right ear contents" title="Swap queues">
+                <svg class="ear-swap-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M304 48l112 112-112 112M404 48l112 112-112 112M140 164h232M140 348h232"/>
+                </svg>
+              </button>
               <div class="ear ear-right">
                 <span class="ear-label">Right ear</span>
-                <span class="ear-stream">Podcasts · Lectures</span>
-                <span class="ear-stream">Audiobooks · News</span>
+                <div class="ear-streams">
+                  <span class="ear-stream">Podcasts · Lectures</span>
+                  <span class="ear-stream">Audiobooks · News</span>
+                </div>
               </div>
             </div>
             <div class="phone-stack">
@@ -360,6 +369,32 @@
       const yearSpan = document.getElementById("year");
       if (yearSpan) {
         yearSpan.textContent = new Date().getFullYear().toString();
+      }
+
+      // Swap left/right ear stream contents (Option B: fade out, swap, fade in)
+      function swapQueues() {
+        const split = document.querySelector(".ear-split");
+        if (!split) return;
+        const leftStreams = split.querySelector(".ear-left .ear-streams");
+        const rightStreams = split.querySelector(".ear-right .ear-streams");
+        if (!leftStreams || !rightStreams) return;
+
+        leftStreams.classList.add("is-fading");
+        rightStreams.classList.add("is-fading");
+
+        setTimeout(function () {
+          const leftHtml = leftStreams.innerHTML;
+          const rightHtml = rightStreams.innerHTML;
+          leftStreams.innerHTML = rightHtml;
+          rightStreams.innerHTML = leftHtml;
+          leftStreams.classList.remove("is-fading");
+          rightStreams.classList.remove("is-fading");
+        }, 150);
+      }
+
+      const earSwapBtn = document.querySelector(".ear-swap-btn");
+      if (earSwapBtn) {
+        earSwapBtn.addEventListener("click", swapQueues);
       }
 
       // Smooth scrolling for in-page links
