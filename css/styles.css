@@ -598,6 +598,61 @@ main {
   color: var(--text-soft);
 }
 
+.legal-main {
+  min-height: 100vh;
+  padding: 4rem 0 3rem;
+  display: flex;
+}
+
+.legal-container {
+  max-width: 720px;
+}
+
+.legal-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  margin-bottom: 1.5rem;
+}
+
+.legal-back-link:hover {
+  color: #e5e7eb;
+}
+
+.legal-header {
+  margin-bottom: 2rem;
+}
+
+.legal-header h1 {
+  margin: 0 0 0.3rem;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: -0.03em;
+}
+
+.legal-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.legal-section {
+  margin-bottom: 1.6rem;
+}
+
+.legal-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.legal-section p,
+.legal-section ul {
+  font-size: 0.94rem;
+  color: var(--text-soft);
+}
+
 .site-footer {
   padding: 2.5rem 0 2.7rem;
   border-top: 1px solid rgba(31, 41, 55, 0.9);
