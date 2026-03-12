@@ -276,11 +276,28 @@ main {
 }
 
 .ear-streams {
-  transition: opacity 0.15s ease-out;
+  transition: opacity 0.15s ease-out, transform 0.3s ease-out;
 }
 
 .ear-streams.is-fading {
   opacity: 0;
+}
+
+/* Option C: slide animation */
+.ear-streams.slide-left-out {
+  transform: translateX(100%);
+}
+
+.ear-streams.slide-right-out {
+  transform: translateX(-100%);
+}
+
+.ear-streams.slide-from-left {
+  transform: translateX(-100%);
+}
+
+.ear-streams.slide-from-right {
+  transform: translateX(100%);
 }
 
 .ear-swap-btn {
@@ -326,6 +343,7 @@ main {
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: radial-gradient(circle at top left, #0b1120, #020617 60%);
+  overflow: hidden;
 }
 
 .ear-left {

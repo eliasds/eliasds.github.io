@@ -371,7 +371,7 @@
         yearSpan.textContent = new Date().getFullYear().toString();
       }
 
-      // Swap left/right ear stream contents (Option B: fade out, swap, fade in)
+      // Swap left/right ear stream contents. Option C: slide animation; Option B (fade) for prefers-reduced-motion.
       function swapQueues() {
         const split = document.querySelector(".ear-split");
         if (!split) return;
@@ -379,17 +379,40 @@
         const rightStreams = split.querySelector(".ear-right .ear-streams");
         if (!leftStreams || !rightStreams) return;
 
-        leftStreams.classList.add("is-fading");
-        rightStreams.classList.add("is-fading");
+        const useFade = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+        if (useFade) {
+          leftStreams.classList.add("is-fading");
+          rightStreams.classList.add("is-fading");
+          setTimeout(function () {
+            const leftHtml = leftStreams.innerHTML;
+            const rightHtml = rightStreams.innerHTML;
+            leftStreams.innerHTML = rightHtml;
+            rightStreams.innerHTML = leftHtml;
+            leftStreams.classList.remove("is-fading");
+            rightStreams.classList.remove("is-fading");
+          }, 150);
+          return;
+        }
+
+        leftStreams.classList.add("slide-left-out");
+        rightStreams.classList.add("slide-right-out");
         setTimeout(function () {
           const leftHtml = leftStreams.innerHTML;
           const rightHtml = rightStreams.innerHTML;
           leftStreams.innerHTML = rightHtml;
           rightStreams.innerHTML = leftHtml;
-          leftStreams.classList.remove("is-fading");
-          rightStreams.classList.remove("is-fading");
-        }, 150);
+          leftStreams.classList.remove("slide-left-out");
+          rightStreams.classList.remove("slide-right-out");
+          leftStreams.classList.add("slide-from-left");
+          rightStreams.classList.add("slide-from-right");
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              leftStreams.classList.remove("slide-from-left");
+              rightStreams.classList.remove("slide-from-right");
+            });
+          });
+        }, 300);
       }
 
       const earSwapBtn = document.querySelector(".ear-swap-btn");
