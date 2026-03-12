@@ -59,12 +59,21 @@
             <div class="ear-split">
               <div class="ear ear-left">
                 <span class="ear-label">Left ear</span>
-                <span class="ear-stream">Music</span>
+                <div class="ear-streams">
+                  <span class="ear-stream">Music</span>
+                </div>
               </div>
+              <button type="button" class="ear-swap-btn" aria-label="Swap left and right ear contents" title="Swap queues">
+                <svg class="ear-swap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+                  <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/>
+                </svg>
+              </button>
               <div class="ear ear-right">
                 <span class="ear-label">Right ear</span>
-                <span class="ear-stream">Podcasts · Lectures</span>
-                <span class="ear-stream">Audiobooks · News</span>
+                <div class="ear-streams">
+                  <span class="ear-stream">Podcasts · Lectures</span>
+                  <span class="ear-stream">Audiobooks · News</span>
+                </div>
               </div>
             </div>
             <div class="phone-stack">
@@ -360,6 +369,55 @@
       const yearSpan = document.getElementById("year");
       if (yearSpan) {
         yearSpan.textContent = new Date().getFullYear().toString();
+      }
+
+      // Swap left/right ear stream contents. Option C: slide animation; Option B (fade) for prefers-reduced-motion.
+      function swapQueues() {
+        const split = document.querySelector(".ear-split");
+        if (!split) return;
+        const leftStreams = split.querySelector(".ear-left .ear-streams");
+        const rightStreams = split.querySelector(".ear-right .ear-streams");
+        if (!leftStreams || !rightStreams) return;
+
+        const useFade = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (useFade) {
+          leftStreams.classList.add("is-fading");
+          rightStreams.classList.add("is-fading");
+          setTimeout(function () {
+            const leftHtml = leftStreams.innerHTML;
+            const rightHtml = rightStreams.innerHTML;
+            leftStreams.innerHTML = rightHtml;
+            rightStreams.innerHTML = leftHtml;
+            leftStreams.classList.remove("is-fading");
+            rightStreams.classList.remove("is-fading");
+          }, 150);
+          return;
+        }
+
+        leftStreams.classList.add("slide-left-out");
+        rightStreams.classList.add("slide-right-out");
+        setTimeout(function () {
+          const leftHtml = leftStreams.innerHTML;
+          const rightHtml = rightStreams.innerHTML;
+          leftStreams.innerHTML = rightHtml;
+          rightStreams.innerHTML = leftHtml;
+          leftStreams.classList.remove("slide-left-out");
+          rightStreams.classList.remove("slide-right-out");
+          leftStreams.classList.add("slide-from-left");
+          rightStreams.classList.add("slide-from-right");
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              leftStreams.classList.remove("slide-from-left");
+              rightStreams.classList.remove("slide-from-right");
+            });
+          });
+        }, 300);
+      }
+
+      const earSwapBtn = document.querySelector(".ear-swap-btn");
+      if (earSwapBtn) {
+        earSwapBtn.addEventListener("click", swapQueues);
       }
 
       // Smooth scrolling for in-page links
