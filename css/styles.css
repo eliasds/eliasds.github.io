@@ -314,10 +314,9 @@ main {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 999px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
   color: var(--text-soft);
   cursor: pointer;
   display: flex;
@@ -335,6 +334,27 @@ main {
 .ear-swap-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Inline icon next to text (e.g. in hero-copy) */
+.ear-swap-btn-container {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 0.15em;
+}
+
+.ear-swap-btn-container .ear-swap-btn {
+  position: static;
+  transform: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.ear-swap-btn-container .ear-swap-icon {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .ear-swap-icon {
