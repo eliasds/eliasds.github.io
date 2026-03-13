@@ -30,7 +30,7 @@
           <a href="#tutorials">Tutorials</a>
         </nav>
         <div class="header-cta">
-          <a href="#get-app" class="btn btn-ghost">Get the app</a>
+          <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-ghost">Get the app</a>
         </div>
       </div>
     </header>
@@ -47,7 +47,7 @@
               Swap sides with a single tap. Reset your focus and discover your potential.
             </p>
             <div id="get-app" class="hero-cta">
-              <a href="#" class="btn btn-primary">Get the iPhone app</a>
+              <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-primary">Get the iPhone app</a>
               <a href="#" class="btn btn-secondary">Join the mailing list</a>
             </div>
             <div class="hero-meta">
@@ -85,17 +85,23 @@
                   </div>
                   <div class="phone-split">
                     <div class="phone-channel phone-channel-left">
-                      <p class="channel-label">Left · Music</p>
-                      <p class="channel-track">Deep Focus Beats</p>
-                      <p class="channel-meta">Playlist · 42 min</p>
+                      <p class="channel-label">Left</p>
+                      <div class="phone-channel-content">
+                        <p class="channel-type">Music</p>
+                        <p class="channel-track">Deep Focus Beats</p>
+                        <p class="channel-meta">Playlist · 42 min</p>
+                      </div>
                     </div>
                     <div class="phone-channel phone-channel-right">
-                      <p class="channel-label">Right · Podcast</p>
-                      <p class="channel-track">Ideas in Stereo</p>
-                      <p class="channel-meta">Episode 12 · 28 min</p>
+                      <p class="channel-label">Right</p>
+                      <div class="phone-channel-content">
+                        <p class="channel-type">Podcast</p>
+                        <p class="channel-track">Ideas in Stereo</p>
+                        <p class="channel-meta">Episode 12 · 28 min</p>
+                      </div>
                     </div>
                   </div>
-                  <button class="swap-button">Tap to swap sides</button>
+                  <button type="button" class="swap-button" aria-label="Swap left and right channels">Tap to swap sides</button>
                   <div class="phone-footer">
                     <span class="footnote">Experiment safely. Find your balance.</span>
                   </div>
@@ -354,7 +360,7 @@
         <div class="footer-links">
           <a href="#get-app">Get the app</a>
           <a href="#tutorials">Tutorials</a>
-          <a href="#">Contact</a>
+          <a href="mailto:dicoticListening@gmail.com">Contact</a>
           <a href="backstory.html">BackStory</a>
           <a href="privacy.html">Privacy Policy</a>
         </div>
@@ -371,54 +377,94 @@
         yearSpan.textContent = new Date().getFullYear().toString();
       }
 
-      // Swap left/right ear stream contents. Option C: slide animation; Option B (fade) for prefers-reduced-motion.
+      // Swap left/right ear stream contents and phone channel contents. Option C: slide; Option B (fade) for prefers-reduced-motion.
       function swapQueues() {
         const split = document.querySelector(".ear-split");
-        if (!split) return;
-        const leftStreams = split.querySelector(".ear-left .ear-streams");
-        const rightStreams = split.querySelector(".ear-right .ear-streams");
-        if (!leftStreams || !rightStreams) return;
+        const leftStreams = split ? split.querySelector(".ear-left .ear-streams") : null;
+        const rightStreams = split ? split.querySelector(".ear-right .ear-streams") : null;
+        const phoneSplit = document.querySelector(".phone-split");
+        const leftChannel = phoneSplit ? phoneSplit.querySelector(".phone-channel-left .phone-channel-content") : null;
+        const rightChannel = phoneSplit ? phoneSplit.querySelector(".phone-channel-right .phone-channel-content") : null;
+
+        const earElements = [leftStreams, rightStreams].filter(Boolean);
+        const phoneElements = [leftChannel, rightChannel].filter(Boolean);
+        if (earElements.length === 0 && phoneElements.length === 0) return;
 
         const useFade = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+        function addFade(el) { if (el) el.classList.add("is-fading"); }
+        function removeFade(el) { if (el) el.classList.remove("is-fading"); }
+        function addSlideOut(left, right) {
+          if (left) left.classList.add("slide-left-out");
+          if (right) right.classList.add("slide-right-out");
+        }
+        function removeSlideOut(left, right) {
+          if (left) left.classList.remove("slide-left-out");
+          if (right) right.classList.remove("slide-right-out");
+        }
+        function addSlideIn(left, right) {
+          if (left) left.classList.add("slide-from-left");
+          if (right) right.classList.add("slide-from-right");
+        }
+        function removeSlideIn(left, right) {
+          if (left) left.classList.remove("slide-from-left");
+          if (right) right.classList.remove("slide-from-right");
+        }
+
         if (useFade) {
-          leftStreams.classList.add("is-fading");
-          rightStreams.classList.add("is-fading");
+          earElements.forEach(addFade);
+          phoneElements.forEach(addFade);
           setTimeout(function () {
-            const leftHtml = leftStreams.innerHTML;
-            const rightHtml = rightStreams.innerHTML;
-            leftStreams.innerHTML = rightHtml;
-            rightStreams.innerHTML = leftHtml;
-            leftStreams.classList.remove("is-fading");
-            rightStreams.classList.remove("is-fading");
+            if (leftStreams && rightStreams) {
+              const leftHtml = leftStreams.innerHTML;
+              const rightHtml = rightStreams.innerHTML;
+              leftStreams.innerHTML = rightHtml;
+              rightStreams.innerHTML = leftHtml;
+            }
+            if (leftChannel && rightChannel) {
+              const leftHtml = leftChannel.innerHTML;
+              const rightHtml = rightChannel.innerHTML;
+              leftChannel.innerHTML = rightHtml;
+              rightChannel.innerHTML = rightHtml;
+            }
+            earElements.forEach(removeFade);
+            phoneElements.forEach(removeFade);
           }, 150);
           return;
         }
 
-        leftStreams.classList.add("slide-left-out");
-        rightStreams.classList.add("slide-right-out");
+        addSlideOut(leftStreams, rightStreams);
+        addSlideOut(leftChannel, rightChannel);
         setTimeout(function () {
-          const leftHtml = leftStreams.innerHTML;
-          const rightHtml = rightStreams.innerHTML;
-          leftStreams.innerHTML = rightHtml;
-          rightStreams.innerHTML = leftHtml;
-          leftStreams.classList.remove("slide-left-out");
-          rightStreams.classList.remove("slide-right-out");
-          leftStreams.classList.add("slide-from-left");
-          rightStreams.classList.add("slide-from-right");
+          if (leftStreams && rightStreams) {
+            const leftHtml = leftStreams.innerHTML;
+            const rightHtml = rightStreams.innerHTML;
+            leftStreams.innerHTML = rightHtml;
+            rightStreams.innerHTML = leftHtml;
+          }
+          if (leftChannel && rightChannel) {
+            const leftHtml = leftChannel.innerHTML;
+            const rightHtml = rightChannel.innerHTML;
+            leftChannel.innerHTML = rightHtml;
+            rightChannel.innerHTML = rightHtml;
+          }
+          removeSlideOut(leftStreams, rightStreams);
+          removeSlideOut(leftChannel, rightChannel);
+          addSlideIn(leftStreams, rightStreams);
+          addSlideIn(leftChannel, rightChannel);
           requestAnimationFrame(function () {
             requestAnimationFrame(function () {
-              leftStreams.classList.remove("slide-from-left");
-              rightStreams.classList.remove("slide-from-right");
+              removeSlideIn(leftStreams, rightStreams);
+              removeSlideIn(leftChannel, rightChannel);
             });
           });
         }, 300);
       }
 
       const earSwapBtn = document.querySelector(".ear-swap-btn");
-      if (earSwapBtn) {
-        earSwapBtn.addEventListener("click", swapQueues);
-      }
+      if (earSwapBtn) earSwapBtn.addEventListener("click", swapQueues);
+      const phoneSwapBtn = document.querySelector(".swap-button");
+      if (phoneSwapBtn) phoneSwapBtn.addEventListener("click", swapQueues);
 
       // Smooth scrolling for in-page links
       document.querySelectorAll('a[href^="#"]').forEach((anchor) => {

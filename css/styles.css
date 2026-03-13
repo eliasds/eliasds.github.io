@@ -424,6 +424,31 @@ main {
   font-size: 0.78rem;
   background: radial-gradient(circle at top, #020617, #020617);
   border: 1px solid rgba(148, 163, 184, 0.4);
+  overflow: hidden;
+}
+
+.phone-channel-content {
+  transition: opacity 0.15s ease-out, transform 0.3s ease-out;
+}
+
+.phone-channel-content.is-fading {
+  opacity: 0;
+}
+
+.phone-channel-content.slide-left-out {
+  transform: translateX(100%);
+}
+
+.phone-channel-content.slide-right-out {
+  transform: translateX(-100%);
+}
+
+.phone-channel-content.slide-from-left {
+  transform: translateX(-100%);
+}
+
+.phone-channel-content.slide-from-right {
+  transform: translateX(100%);
 }
 
 .phone-channel-left {
@@ -438,7 +463,15 @@ main {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.22em;
-  color: rgba(15, 23, 42, 0.86);
+  color: rgba(144, 156, 179, 0.86);
+}
+
+.channel-type {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(144, 156, 179, 0.86);
+  margin: 0.2rem 0 0;
 }
 
 .channel-track {
