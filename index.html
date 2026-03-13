@@ -44,8 +44,32 @@
             <h1>Explore the power of divided listening.</h1>
             <p class="hero-copy">
               Music in one ear. Audiobooks, podcasts, or news in the other.
-              Swap sides with a single tap. Reset your focus and discover your potential.
-              <span class="pill">Designed for headphones</span>
+              Swap sides with a single tap
+              <span class="ear-swap-btn-container">
+                <button
+                  type="button"
+                  class="ear-swap-btn"
+                  aria-label="Swap left and right ear contents"
+                  title="Swap queues"
+                >
+                  <svg
+                    class="ear-swap-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16" />
+                  </svg>
+                </button>
+              </span>
+              Reset your focus and discover your potential.
+                <span class="pill">Designed for headphones</span>
             </p>
             <div class="hero-cta">
               <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-primary">Get the iPhone app</a>
@@ -214,10 +238,18 @@
               </p>
             </article>
             <article class="usecase-card">
+              <h3>Walks in the woods</h3>
+              <p>
+                Let your headphones augment what you see and hear around you.
+                Play tunes to mach your surroundings on one side, learn from your
+                favorite authors on the other.
+              </p>
+            </article>
+            <article class="usecase-card">
               <h3>Focus-curious minds</h3>
               <p>
                 If you&apos;re the kind of person who needs &ldquo;just the
-                right amount&rdquo; of noise to think, dicotic gives you new
+                right amount of noise&rdquo; to think, dicotic gives you new
                 knobs to turn.
               </p>
             </article>
@@ -231,10 +263,6 @@
           <header class="section-header">
             <p class="eyebrow">See dicotic in action</p>
             <h2>Designed for clarity, not clutter.</h2>
-            <p class="section-lead">
-              Drop in at least three iPhone screenshots here to show the main
-              listening screen, swap interaction, and settings or experiments.
-            </p>
           </header>
 
           <div class="screenshots-row">
@@ -416,8 +444,9 @@
         }, 300);
       }
 
-      const earSwapBtn = document.querySelector(".ear-swap-btn");
-      if (earSwapBtn) earSwapBtn.addEventListener("click", swapQueues);
+      document.querySelectorAll(".ear-swap-btn").forEach(function (btn) {
+        btn.addEventListener("click", swapQueues);
+      });
       const phoneSwapBtn = document.querySelector(".swap-button");
       if (phoneSwapBtn) phoneSwapBtn.addEventListener("click", swapQueues);
 
