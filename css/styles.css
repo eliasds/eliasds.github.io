@@ -91,19 +91,8 @@ main {
   width: 32px;
   height: 32px;
   border-radius: 40%;
-  background: conic-gradient(
-    from 210deg,
-    #22d3ee,
-    #7c3aed,
-    #f97316,
-    #22d3ee
-  );
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: "Space Grotesk", system-ui, sans-serif;
-  font-weight: 700;
-  color: #020617;
+  display: block;
+  object-fit: contain;
   box-shadow: var(--shadow-pill);
 }
 
@@ -659,6 +648,13 @@ main {
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
+}
+
+.footer-cta-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  display: block;
 }
 
 .footer-cta-heading {
