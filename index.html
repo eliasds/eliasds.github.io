@@ -42,7 +42,8 @@
         <div class="container hero-grid">
           <div class="hero-text">
             <p class="eyebrow">A new way to listen</p>
-            <h1>Explore the power of divided listening.</h1>
+            <p class="eyebrow">Explore the power of divided listening</p>
+            <h1>Two ears. <br />Two streams. <br />One mind.</h1>
             <p class="hero-copy">
               Music in one ear. Audiobooks, podcasts, or news in the other.
               Swap sides with a single tap
@@ -74,7 +75,6 @@
             </p>
             <div class="hero-cta">
               <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-primary">Get the iPhone app</a>
-              <a href="#" class="btn btn-secondary">Join the mailing list</a>
             </div>
           </div>
 
@@ -82,7 +82,7 @@
             <div class="ear-split">
               <div class="ear ear-left">
                 <span class="ear-label">Left ear</span>
-                <div class="ear-streams">
+                <div class="ear-streams" aria-live="polite">
                   <span class="ear-stream">Music</span>
                 </div>
               </div>
@@ -109,7 +109,7 @@
               </button>
               <div class="ear ear-right">
                 <span class="ear-label">Right ear</span>
-                <div class="ear-streams">
+                <div class="ear-streams" aria-live="polite">
                   <span class="ear-stream">Podcasts · Lectures</span>
                   <span class="ear-stream">Audiobooks · News</span>
                 </div>
@@ -122,6 +122,40 @@
             >
               Tap to swap sides
             </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screenshots -->
+      <section id="screenshots" class="section section-alt">
+        <div class="container">
+          <header class="section-header">
+            <p class="eyebrow">See dicotic in action</p>
+            <h2>Designed for clarity, not clutter.</h2>
+          </header>
+
+          <div class="screenshots-row">
+            <figure class="screenshot-frame">
+              <img
+                src="img/featured/screenshot-queue02.png"
+                alt="dicotic showing separate left and right audio queues"
+              />
+              <figcaption>Separate left and right queues</figcaption>
+            </figure>
+            <figure class="screenshot-frame">
+              <img
+                src="img/screenshot-swap02.gif"
+                alt="dicotic swapping left and right channels"
+              />
+              <figcaption>Listening screen, tap to swap queues</figcaption>
+            </figure>
+            <figure class="screenshot-frame">
+              <img
+                src="img/featured/screenshot-playlists01.png"
+                alt="dicotic library for focus, workout, and unwind modes"
+              />
+              <figcaption>Add playlists to your dicotic library</figcaption>
+            </figure>
           </div>
         </div>
       </section>
@@ -142,11 +176,9 @@
           <div class="steps-grid">
             <article class="step-card">
               <span class="step-number">1</span>
-              <h3>Pick your two streams.</h3>
+              <h3>Pick two streams.</h3>
               <p>
-                Choose your vibe and your brain food. A playlist that keeps you
-                moving, plus a podcast, audiobook, or news source you want to
-                follow.
+                Music for energy. Words for ideas.
               </p>
             </article>
 
@@ -154,19 +186,15 @@
               <span class="step-number">2</span>
               <h3>Assign each ear.</h3>
               <p>
-                Send music to the ear that keeps you in motion, and words to the
-                ear that keeps you learning. Discover which ear prefers rhythm
-                and which prefers language.
+                Send rhythm to one side and language to the other.
               </p>
             </article>
 
             <article class="step-card">
               <span class="step-number">3</span>
-              <h3>Tap to reset your focus.</h3>
+              <h3>Swap to reset your focus.</h3>
               <p>
-                When things feel noisy, a single tap swaps sides and centers your
-                focus. Find the balance between energy and comprehension in real
-                time.
+                A single tap re-centers your attention.
               </p>
             </article>
           </div>
@@ -242,7 +270,7 @@
               <h3>Walks in the woods</h3>
               <p>
                 Let your headphones augment what you see and hear around you.
-                Play tunes to mach your surroundings on one side, learn from your
+                Play tunes to match your surroundings on one side, learn from your
                 favorite authors on the other.
               </p>
             </article>
@@ -254,40 +282,6 @@
                 knobs to turn.
               </p>
             </article>
-          </div>
-        </div>
-      </section>
-
-      <!-- Screenshots -->
-      <section id="screenshots" class="section section-alt">
-        <div class="container">
-          <header class="section-header">
-            <p class="eyebrow">See dicotic in action</p>
-            <h2>Designed for clarity, not clutter.</h2>
-          </header>
-
-          <div class="screenshots-row">
-            <figure class="screenshot-frame">
-              <img
-                src="img/featured/screenshot-queue02.png"
-                alt="dicotic queues for left and right ears"
-              />
-              <figcaption>Separate left and right queues</figcaption>
-            </figure>
-            <figure class="screenshot-frame">
-              <img
-                src="img/screenshot-swap02.gif"
-                alt="dicotic swapping left and right channels"
-              />
-              <figcaption>Listening screen, tap to swap queues</figcaption>
-            </figure>
-            <figure class="screenshot-frame">
-              <img
-                src="img/featured/screenshot-playlists01.png"
-                alt="dicotic library for focus, workout, and unwind modes"
-              />
-              <figcaption>Add playlists to your dicotic library</figcaption>
-            </figure>
           </div>
         </div>
       </section>
@@ -451,6 +445,8 @@
       });
       const phoneSwapBtn = document.querySelector(".swap-button");
       if (phoneSwapBtn) phoneSwapBtn.addEventListener("click", swapQueues);
+
+      setInterval(swapQueues, 5000);
 
       // Smooth scrolling for in-page links
       document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
