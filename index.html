@@ -25,13 +25,14 @@
           <span class="brand-text">dicotic</span>
         </a>
         <nav class="main-nav">
+          <a href="#screenshots">Screenshots</a>
           <a href="#how-it-works">How it works</a>
           <a href="#benefits">Benefits</a>
-          <a href="#screenshots">Screenshots</a>
           <a href="#tutorials">Tutorials</a>
         </nav>
         <div class="header-cta">
           <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-ghost">Get the app</a>
+          <span id="launch-countdown" class="header-countdown" aria-label="Countdown to March 20, 2026 midnight Pacific time"></span>
         </div>
       </div>
     </header>
@@ -163,8 +164,8 @@
       <section id="how-it-works" class="section">
         <div class="container">
           <header class="section-header">
-            <p class="eyebrow">Music and meaning, perfectly split</p>
-            <h2>Three steps to divided listening.</h2>
+            <p class="eyebrow">Three steps to divided listening</p>
+            <h2>Music and meaning, perfectly split.</h2>
             <p class="section-lead">
               dicotic gives you a gentle, controllable way to explore how your
               brain responds to multiple streams at once—no hacks, no noise,
@@ -205,7 +206,7 @@
         <div class="container">
           <header class="section-header">
             <p class="eyebrow">Why it matters</p>
-            <h2>Built for people who love to think, move, and explore.</h2>
+            <h2>Unleash a new relationship with sound.</h2>
           </header>
 
           <div class="benefits-grid">
@@ -246,8 +247,8 @@
       <section class="section">
         <div class="container">
           <header class="section-header">
-            <p class="eyebrow">Everyday experiments</p>
-            <h2>Where dicotic fits into your life.</h2>
+            <p class="eyebrow">Where dicotic fits into your life</p>
+            <h2>Music for your emotions. Knowledge for your mind.</h2>
           </header>
 
           <div class="usecases-grid">
@@ -290,7 +291,7 @@
         <div class="container">
           <header class="section-header">
             <p class="eyebrow">Learn by watching</p>
-            <h2>A new way to listen.</h2>
+            <h2>dicotic. A new way to listen.</h2>
             <p class="section-lead">
               Use this space for quick walkthroughs: getting started with
               dicotic, setting up your first split, and experimenting with
@@ -300,34 +301,33 @@
 
           <div class="tutorials-grid">
             <article class="tutorial-card">
-              <div class="video-placeholder">
-                <!-- Replace the placeholder div with an actual <iframe> or <video> embed when ready -->
-                <span>Intro to dicotic</span>
-              </div>
+              <video class="video-placeholder" controls playsinline preload="metadata">
+                <source src="img/addPlaylistsToQueue.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
               <h3>Getting started</h3>
               <p>
-                A short overview of the app, how to pick your first streams, and
-                what to expect from your first few sessions.
+                A short overview of the app and how to pick your first couple streams.
               </p>
             </article>
             <article class="tutorial-card">
-              <div class="video-placeholder">
-                <span>Deep work setup</span>
-              </div>
-              <h3>Deep work &amp; study</h3>
+              <video class="video-placeholder" controls playsinline preload="metadata">
+                <source src="img/addPlaylistsToQueue.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              <h3>Getting started</h3>
               <p>
-                A walkthrough of using dicotic during focused work with examples
-                for music, lectures, and note-taking.
+                A short overview of the app and how to pick your first couple streams.
               </p>
             </article>
             <article class="tutorial-card">
-              <div class="video-placeholder">
-                <span>Movement &amp; learning</span>
-              </div>
-              <h3>Commutes &amp; movement</h3>
+              <video class="video-placeholder" controls playsinline preload="metadata">
+                <source src="img/addPlaylistsToQueue.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              <h3>Getting started</h3>
               <p>
-                Ideas for using dicotic on walks, runs, or travel so you can
-                learn, reflect, and move at the same time.
+                A short overview of the app and how to pick your first couple streams.
               </p>
             </article>
           </div>
@@ -394,6 +394,39 @@
       if (yearSpan) {
         yearSpan.textContent = new Date().getFullYear().toString();
       }
+
+      // Countdown to midnight PT on 3/20/2026 (LA time; offset -07:00 due to DST).
+      (function () {
+        const el = document.getElementById("launch-countdown");
+        if (!el) return;
+
+        const targetMs = Date.parse("2026-03-20T00:00:00-07:00");
+
+        function pad2(n) {
+          return String(n).padStart(2, "0");
+        }
+
+        function render() {
+          const nowMs = Date.now();
+          const diffMs = targetMs - nowMs;
+          if (diffMs <= 0) {
+            el.style.display = "none";
+            return;
+          }
+
+          const totalSeconds = Math.floor(diffMs / 1000);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+          el.textContent = `${hours}:${pad2(minutes)}:${pad2(seconds)}`;
+        }
+
+        render();
+        const t = setInterval(function () {
+          render();
+          if (el.style.display === "none") clearInterval(t);
+        }, 1000);
+      })();
 
       // Swap left/right ear stream contents. Option C: slide; Option B (fade) for prefers-reduced-motion.
       function swapQueues() {
