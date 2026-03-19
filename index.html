@@ -31,8 +31,11 @@
           <a href="#tutorials">Tutorials</a>
         </nav>
         <div class="header-cta">
+          <div id="launch-countdown" class="header-countdown" aria-label="Countdown to March 20, 2026 midnight Pacific time">
+            <span class="header-countdown-title">Time To Launch:</span>
+            <span class="header-countdown-value"></span>
+          </div>
           <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-ghost">Get the app</a>
-          <span id="launch-countdown" class="header-countdown" aria-label="Countdown to March 20, 2026 midnight Pacific time"></span>
         </div>
       </div>
     </header>
@@ -399,6 +402,8 @@
       (function () {
         const el = document.getElementById("launch-countdown");
         if (!el) return;
+        const valueEl = el.querySelector(".header-countdown-value");
+        if (!valueEl) return;
 
         const targetMs = Date.parse("2026-03-20T00:00:00-07:00");
 
@@ -418,7 +423,7 @@
           const hours = Math.floor(totalSeconds / 3600);
           const minutes = Math.floor((totalSeconds % 3600) / 60);
           const seconds = totalSeconds % 60;
-          el.textContent = `${hours}:${pad2(minutes)}:${pad2(seconds)}`;
+          valueEl.textContent = `${hours}:${pad2(minutes)}:${pad2(seconds)}`;
         }
 
         render();
