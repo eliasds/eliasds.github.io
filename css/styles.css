@@ -154,6 +154,8 @@ main {
   background: rgba(15, 23, 42, 0.55);
   border-radius: var(--radius-pill);
   padding: 0.4rem 0.6rem;
+  opacity: 0.75;
+  transform: scale(0.92);
 }
 
 .header-countdown-title {
@@ -392,6 +394,31 @@ main {
   border: 1px solid var(--border-subtle);
   background: radial-gradient(circle at top left, #0b1120, #020617 60%);
   overflow: hidden;
+}
+
+.ear {
+  animation: earPulse 4s ease-in-out infinite;
+}
+
+@keyframes earPulse {
+  0% {
+    box-shadow: 0 0 0px rgba(255, 255, 255, 0.0);
+    transform: scale(1);
+  }
+
+  40% {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+  }
+
+  60% {
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.35);
+    transform: scale(1.0); /* subtle expansion */
+  }
+
+  100% {
+    box-shadow: 0 0 0px rgba(255, 255, 255, 0.0);
+    transform: scale(1);
+  }
 }
 
 .ear-left {

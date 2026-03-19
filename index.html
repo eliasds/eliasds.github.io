@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
   <head>
+    <script>
+      document.documentElement.classList.remove("no-js");
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dicotic – Divided Listening for Focused Minds</title>
@@ -73,7 +76,7 @@
                   </svg>
                 </button>
               </span>
-              Reset your focus and discover your potential.
+              Reset your focus with a single tap.
                 <span class="pill">Designed for headphones</span>
             </p>
             <div class="hero-cta">
@@ -129,6 +132,29 @@
         </div>
       </section>
 
+
+      <section class="section">
+        <div class="container">
+          <header class="section-header">
+            <p class="eyebrow">The idea</p>
+            <h2>Your brain already listens this way.</h2>
+          </header>
+      
+          <div class="science-layout">
+            <p>
+              When you listen to music while walking, your mind doesn’t stay fixed.
+              It shifts. Rhythm carries your mood while your attention moves between
+              sounds, thoughts, and the world around you.
+            </p>
+            <p>
+              dicotic makes that natural process intentional. Music in one ear.
+              Meaning in the other. You decide how your attention flows.
+            </p>
+          </div>
+        </div>
+      </section>
+
+
       <!-- Screenshots -->
       <section id="screenshots" class="section section-alt">
         <div class="container">
@@ -143,21 +169,21 @@
                 src="img/featured/screenshot-queue02.png"
                 alt="dicotic showing separate left and right audio queues"
               />
-              <figcaption>Separate left and right queues</figcaption>
+              <figcaption>Control two independent listening streams</figcaption>
             </figure>
             <figure class="screenshot-frame">
               <img
                 src="img/screenshot-swap02.gif"
                 alt="dicotic swapping left and right channels"
               />
-              <figcaption>Listening screen, tap to swap queues</figcaption>
+              <figcaption>Tap to instantly shift your focus</figcaption>
             </figure>
             <figure class="screenshot-frame">
               <img
                 src="img/featured/screenshot-playlists01.png"
                 alt="dicotic library for focus, workout, and unwind modes"
               />
-              <figcaption>Add playlists to your dicotic library</figcaption>
+              <figcaption>Bring your own music and audio into both streams</figcaption>
             </figure>
           </div>
         </div>
@@ -304,7 +330,7 @@
 
           <div class="tutorials-grid">
             <article class="tutorial-card">
-              <video class="video-placeholder" controls playsinline preload="metadata">
+              <video class="video-placeholder" controls playsinline preload="metadata" poster="img/addPlaylistsToQueue.jpg">
                 <source src="img/addPlaylistsToQueue.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
@@ -314,7 +340,7 @@
               </p>
             </article>
             <article class="tutorial-card">
-              <video class="video-placeholder" controls playsinline preload="metadata">
+              <video class="video-placeholder" controls playsinline preload="metadata"poster="img/createPlaylists.jpg">
                 <source src="img/createPlaylists.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
@@ -324,7 +350,7 @@
               </p>
             </article>
             <article class="tutorial-card">
-              <video class="video-placeholder" controls playsinline preload="metadata">
+              <video class="video-placeholder" controls playsinline preload="metadata" poster="img/boostVolume.jpg">
                 <source src="img/boostVolume.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
@@ -365,7 +391,7 @@
     <section class="footer-cta" aria-label="Get the app">
       <div class="container footer-cta-inner">
         <img class="footer-cta-logo" src="img/icon.png" alt="" width="56" height="56" />
-        <p class="footer-cta-heading">Ready to try divided listening?</p>
+        <p class="footer-cta-heading">Try listening with both sides of your mind.</p>
         <div class="footer-cta-buttons">
           <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-primary">Get the iPhone app</a>
           <a href="mailing-list.html" class="btn btn-secondary">Join the mailing list</a>
@@ -425,6 +451,11 @@
           const seconds = totalSeconds % 60;
           valueEl.textContent = `${hours}:${pad2(minutes)}:${pad2(seconds)}`;
         }
+
+        // 🔹 Hide on scroll (kept inside same scope)
+        window.addEventListener("scroll", () => {
+          el.style.opacity = window.scrollY > 50 ? "0" : "0.75";
+        });
 
         render();
         const t = setInterval(function () {
