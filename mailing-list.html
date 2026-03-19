@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dicotic – Join the mailing list</title>
+    <meta
+      name="description"
+      content="Sign up for dicotic updates, launch news, and divided listening tips."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" href="img/icon.png" type="image/png" />
+  </head>
+  <body>
+    <main class="legal-main mailing-page">
+      <div class="container legal-container">
+        <a href="index.html" class="legal-back-link">← Back to dicotic home</a>
+
+        <header class="legal-header">
+          <p class="eyebrow">Stay in the loop</p>
+          <h1>Join the mailing list</h1>
+          <p class="legal-meta">
+            Get launch updates, tips for divided listening, and occasional notes from the developer.
+          </p>
+        </header>
+
+        <form
+          class="mailing-form"
+          action="https://formspree.io/f/xjgalbzk"
+          method="POST"
+        >
+          <input type="hidden" name="_subject" value="dicotic mailing list signup" />
+
+          <div class="form-field">
+            <label for="mailing-email">Your email</label>
+            <input
+              id="mailing-email"
+              type="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="mailing-message">Message <span class="form-optional">(optional)</span></label>
+            <textarea
+              id="mailing-message"
+              name="message"
+              rows="4"
+              placeholder="Anything you’d like us to know—use cases, feature ideas, or just hello."
+            ></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary mailing-form-submit">Subscribe</button>
+          <p class="mailing-form-note">
+            We’ll only use your email for dicotic-related updates. You can unsubscribe anytime.
+          </p>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>
