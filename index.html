@@ -514,7 +514,7 @@
       const phoneSwapBtn = document.querySelector(".swap-button");
       if (phoneSwapBtn) phoneSwapBtn.addEventListener("click", swapQueues);
 
-      setInterval(swapQueues, 5000);
+      setTimeout(() => {setInterval(swapQueues, 5000)}, 1500);
 
       // Smooth scrolling for in-page links
       document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
