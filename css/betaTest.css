@@ -35,9 +35,97 @@ body.beta-page .btn-ghost {
   color: var(--beta-text-secondary);
 }
 
-body.beta-page .site-footer {
-  background: var(--beta-bg);
-  border-top-color: var(--beta-border);
+/* Combined fixed footer — same element order as index.html (brand, links row + meta); center = dual play */
+body.beta-page .beta-page-footer.site-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid var(--beta-border);
+  background: linear-gradient(to top, rgba(10, 10, 11, 0.99), rgba(10, 10, 11, 0.94));
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Row 1: brand | swap+play (column) | link cluster — mirrors index footer-inner + centered tab control */
+body.beta-page .beta-footer-inner.footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.45rem;
+}
+
+body.beta-page .beta-footer-inner .footer-brand {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+body.beta-page .beta-footer-inner .beta-dual-play-cluster {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  align-self: center;
+}
+
+body.beta-page .beta-footer-inner .footer-links {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  font-size: 0.8rem;
+  gap: 1.4rem;
+}
+
+body.beta-page .beta-footer-inner .footer-links a {
+  color: var(--beta-text-secondary);
+}
+
+body.beta-page .beta-footer-inner .footer-links a:hover {
+  color: var(--beta-text);
+}
+
+body.beta-page .beta-footer-inner .footer-meta {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  margin: 0;
+  padding-top: 0.15rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--beta-text-secondary);
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  body.beta-page .beta-footer-inner.footer-inner {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  body.beta-page .beta-footer-inner .footer-brand {
+    justify-self: center;
+  }
+
+  body.beta-page .beta-footer-inner .beta-dual-play-cluster {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  body.beta-page .beta-footer-inner .footer-links {
+    grid-column: 1;
+    justify-self: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  body.beta-page .beta-footer-inner .footer-meta {
+    text-align: center;
+  }
 }
 
 .beta-page .sr-only {
@@ -54,7 +142,7 @@ body.beta-page .site-footer {
 
 .beta-page .legal-main {
   padding-top: 2rem;
-  padding-bottom: 8.5rem;
+  padding-bottom: 7.5rem;
 }
 
 .beta-page .legal-header h1 {
@@ -446,30 +534,20 @@ body.beta-page .site-footer {
   border: 0;
 }
 
-/* Fixed bottom bar — Dual play + swap (tab bar) */
-.beta-page .beta-tab-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 50;
-  padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0));
-  background: linear-gradient(to top, rgba(10, 10, 11, 0.98), rgba(10, 10, 11, 0.92));
-  border-top: 1px solid var(--beta-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+/* Dual play + swap — column stack like iOS dualPlayContent (swap above play) */
 .beta-page .beta-dual-play-cluster {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: flex-start;
+  gap: 0;
+  flex-shrink: 0;
 }
 
 .beta-page .beta-swap-tab {
   width: 48px;
   height: 48px;
+  margin-bottom: 4px;
   border-radius: 999px;
   border: 1px solid var(--beta-border);
   background: var(--beta-surface);
@@ -493,8 +571,8 @@ body.beta-page .site-footer {
 }
 
 .beta-page .beta-dual-play-btn {
-  width: 84px;
-  height: 84px;
+  width: 64px;
+  height: 64px;
   border-radius: 999px;
   border: none;
   background: transparent;

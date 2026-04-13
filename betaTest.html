@@ -307,42 +307,41 @@
       </div>
     </main>
 
-    <div class="beta-tab-bar" role="toolbar" aria-label="Dual play and swap">
-      <div class="beta-dual-play-cluster">
-        <button type="button" class="beta-swap-tab" id="beta-swap-queues" aria-label="Swap left and right queues" title="Swap queues">
-          <!-- Ionicons swap-horizontal -->
-          <svg class="ionicon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true">
-            <path
-              fill="none"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="32"
-              d="M304 48l112 112-112 112M398.87 160H96M208 464L96 352l112-112M114 352h302"
-            />
-          </svg>
-        </button>
-        <button type="button" class="beta-dual-play-btn" id="beta-dual-play" aria-label="Play both channels">
-          <svg class="ionicon" width="72" height="72" viewBox="0 0 512 512" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <footer class="site-footer">
-      <div class="container footer-inner">
+    <footer class="site-footer beta-page-footer">
+      <div class="container footer-inner beta-footer-inner">
         <div class="footer-brand">
           <img class="brand-mark" src="img/icon.png" alt="dicotic" width="32" height="32" />
           <span class="brand-text">dicotic</span>
         </div>
-        <div class="footer-links">
-          <a href="index.html">Home</a>
-          <a href="privacy.html">Privacy Policy</a>
+        <div class="beta-dual-play-cluster" role="toolbar" aria-label="Dual play and swap">
+          <button type="button" class="beta-swap-tab" id="beta-swap-queues" aria-label="Swap left and right queues" title="Swap queues">
+            <!-- Ionicons swap-horizontal (above play, like iOS dualPlayContent) -->
+            <svg class="ionicon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="32"
+                d="M304 48l112 112-112 112M398.87 160H96M208 464L96 352l112-112M114 352h302"
+              />
+            </svg>
+          </button>
+          <button type="button" class="beta-dual-play-btn" id="beta-dual-play" aria-label="Play both channels">
+            <svg class="ionicon" width="56" height="56" viewBox="0 0 512 512" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"
+              />
+            </svg>
+          </button>
         </div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="https://apps.apple.com/us/app/dicotic/id6760433267">Get the app</a>
+          <a href="mailto:dicoticListening@gmail.com">Contact</a>
+          <a href="backstory.html">BackStory</a>
+          <a href="privacy.html">Privacy Policy</a>
+        </nav>
         <p class="footer-meta">&copy; <span id="year"></span> dicotic. Web beta.</p>
       </div>
     </footer>
