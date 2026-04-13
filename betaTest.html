@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    <script>
+      document.documentElement.classList.remove("no-js");
+    </script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>dicotic – Web beta (local audio)</title>
+    <meta
+      name="description"
+      content="Try dicotic in the browser: two local audio streams with left and right panning. Beta; files stay on your device."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/betaTest.css" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  </head>
+  <body class="beta-page">
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="index.html" class="brand">
+          <img class="brand-mark" src="img/icon.png" alt="dicotic" width="32" height="32" />
+          <span class="brand-text">dicotic</span>
+        </a>
+        <nav class="main-nav">
+          <a href="index.html">Home</a>
+          <a href="https://apps.apple.com/us/app/dicotic/id6760433267">iOS app</a>
+        </nav>
+        <div class="header-cta">
+          <a href="index.html" class="btn btn-ghost">Back to site</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="top" class="legal-main">
+      <div class="container legal-container">
+        <a href="index.html" class="legal-back-link" aria-label="Back to home">&larr; Back to home</a>
+
+        <header class="legal-header">
+          <p class="eyebrow">Web beta</p>
+          <h1>Two streams in the browser</h1>
+          <p class="legal-meta">
+            Load audio from this device (or a synced folder exposed in your file picker). Playback uses Web Audio for
+            independent left and right panning—use headphones for the clearest split.
+          </p>
+        </header>
+
+        <p class="beta-banner" role="note">
+          <strong>Beta.</strong> This page does not upload your files. Streaming services (YouTube, Apple Music,
+          Spotify) are not connected yet—only local files and URLs you open from disk or cloud folders your browser can
+          read.
+        </p>
+
+        <div id="beta-status" class="beta-status" role="status" hidden></div>
+
+        <div class="beta-master">
+          <label for="beta-master-volume">Master volume</label>
+          <input
+            id="beta-master-volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value="0.85"
+            aria-label="Master volume"
+          />
+        </div>
+
+        <!-- Hidden elements: two logical tracks (wired in betaTest.js) -->
+        <audio id="beta-audio-a" crossorigin="anonymous" preload="metadata" playsinline></audio>
+        <audio id="beta-audio-b" crossorigin="anonymous" preload="metadata" playsinline></audio>
+
+        <div class="hero-visual beta-hero-visual">
+          <div class="ear-split">
+            <div class="ear ear-left" id="beta-channel-left">
+              <span class="ear-label">Left ear</span>
+              <div class="ear-streams" aria-live="polite">
+                <span class="ear-stream beta-track-title">No track loaded</span>
+              </div>
+            </div>
+            <button type="button" class="ear-swap-btn" aria-label="Swap left and right ear contents" title="Swap sides">
+              <svg
+                class="ear-swap-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16" />
+              </svg>
+            </button>
+            <div class="ear ear-right" id="beta-channel-right">
+              <span class="ear-label">Right ear</span>
+              <div class="ear-streams" aria-live="polite">
+                <span class="ear-stream beta-track-title">No track loaded</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="swap-button" aria-label="Swap left and right channels">Tap to swap sides</button>
+
+          <div class="beta-controls-grid">
+            <div class="beta-channel-controls" aria-labelledby="beta-left-heading">
+              <h3 id="beta-left-heading">Left channel</h3>
+              <div class="beta-row">
+                <input
+                  id="beta-file-left"
+                  class="beta-hidden-file"
+                  type="file"
+                  accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac,.webm"
+                  aria-label="Choose audio file for left channel"
+                />
+                <button type="button" id="beta-load-left" class="btn btn-secondary">Load audio</button>
+                <button type="button" id="beta-play-left" class="btn btn-primary">Play</button>
+              </div>
+              <div class="beta-row">
+                <input id="beta-seek-left" type="range" min="0" max="0" step="0.1" value="0" aria-label="Left seek" />
+                <span id="beta-time-left" class="beta-time">0:00 / 0:00</span>
+              </div>
+              <div class="beta-row">
+                <label for="beta-vol-left" class="sr-only">Left channel volume</label>
+                <span class="beta-time" style="width: auto; flex: 0 0 auto">Vol</span>
+                <input id="beta-vol-left" type="range" min="0" max="1" step="0.01" value="1" aria-label="Left volume" />
+              </div>
+            </div>
+
+            <div class="beta-channel-controls" aria-labelledby="beta-right-heading">
+              <h3 id="beta-right-heading">Right channel</h3>
+              <div class="beta-row">
+                <input
+                  id="beta-file-right"
+                  class="beta-hidden-file"
+                  type="file"
+                  accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac,.webm"
+                  aria-label="Choose audio file for right channel"
+                />
+                <button type="button" id="beta-load-right" class="btn btn-secondary">Load audio</button>
+                <button type="button" id="beta-play-right" class="btn btn-primary">Play</button>
+              </div>
+              <div class="beta-row">
+                <input id="beta-seek-right" type="range" min="0" max="0" step="0.1" value="0" aria-label="Right seek" />
+                <span id="beta-time-right" class="beta-time">0:00 / 0:00</span>
+              </div>
+              <div class="beta-row">
+                <label for="beta-vol-right" class="sr-only">Right channel volume</label>
+                <span class="beta-time" style="width: auto; flex: 0 0 auto">Vol</span>
+                <input
+                  id="beta-vol-right"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="1"
+                  aria-label="Right volume"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <img class="brand-mark" src="img/icon.png" alt="dicotic" width="32" height="32" />
+          <span class="brand-text">dicotic</span>
+        </div>
+        <div class="footer-links">
+          <a href="index.html">Home</a>
+          <a href="privacy.html">Privacy Policy</a>
+        </div>
+        <p class="footer-meta">&copy; <span id="year"></span> dicotic. Web beta.</p>
+      </div>
+    </footer>
+
+    <script>
+      var y = document.getElementById("year");
+      if (y) y.textContent = new Date().getFullYear().toString();
+    </script>
+    <script src="src/betaTest.js" defer></script>
+  </body>
+</html>

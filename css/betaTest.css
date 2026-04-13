@@ -1,0 +1,132 @@
+/* Scoped additions for web beta (dual local streams) */
+
+.beta-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.beta-page .beta-banner {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.65);
+  font-size: 0.88rem;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.beta-page .beta-banner strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.beta-page .beta-status {
+  margin: 0 0 1rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.beta-page .beta-status--error {
+  border-color: rgba(249, 115, 115, 0.45);
+  color: #fecaca;
+}
+
+.beta-page .beta-master {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.beta-page .beta-master input[type="range"] {
+  flex: 1;
+  min-width: 140px;
+  max-width: 280px;
+  accent-color: var(--accent);
+}
+
+.beta-page .beta-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.beta-page .beta-channel-controls {
+  padding: 1rem 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.beta-page .beta-channel-controls h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.beta-page .beta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.beta-page .beta-row:last-child {
+  margin-bottom: 0;
+}
+
+.beta-page .beta-row input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--accent-secondary);
+}
+
+.beta-page .beta-time {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.beta-page .beta-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.beta-page .beta-hero-visual {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  .beta-page .beta-controls-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
