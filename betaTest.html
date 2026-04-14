@@ -6,7 +6,9 @@
     </script>
 
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="color-scheme" content="dark" />
 
     <title>dicotic – Web beta (local audio)</title>
     <meta
@@ -52,11 +54,6 @@
         <header class="legal-header">
           <p class="eyebrow">Web beta</p>
           <h1>dicotic in the browser</h1>
-          <p class="legal-meta">
-            Modeled after the iOS home screen: two channels, per-channel <strong>Balance</strong> (−1 = full left, +1 = full
-            right, 0 = center), separate volumes, and swap queues. Load files from this device or from folders your system
-            exposes (including synced cloud storage).
-          </p>
         </header>
 
         <p class="beta-banner" role="note">
@@ -67,19 +64,6 @@
         </p>
 
         <div id="beta-status" class="beta-status" role="status" hidden></div>
-
-        <div class="beta-master">
-          <label for="beta-master-volume">Master</label>
-          <input
-            id="beta-master-volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value="0.85"
-            aria-label="Master volume"
-          />
-        </div>
 
         <audio id="beta-audio-left" preload="metadata" playsinline></audio>
         <audio id="beta-audio-right" preload="metadata" playsinline></audio>
@@ -309,9 +293,10 @@
 
     <footer class="site-footer beta-page-footer">
       <div class="container footer-inner beta-footer-inner">
-        <div class="footer-brand">
-          <img class="brand-mark" src="img/icon.png" alt="dicotic" width="32" height="32" />
-          <span class="brand-text">dicotic</span>
+        <div class="beta-footer-side beta-footer-side--left">
+          <p class="beta-footer-copyright">
+            &copy; <span id="year"></span> dicotic · Web beta
+          </p>
         </div>
         <div class="beta-dual-play-cluster" role="toolbar" aria-label="Dual play and swap">
           <button type="button" class="beta-swap-tab" id="beta-swap-queues" aria-label="Swap left and right queues" title="Swap queues">
@@ -336,13 +321,14 @@
             </svg>
           </button>
         </div>
-        <nav class="footer-links" aria-label="Footer">
-          <a href="https://apps.apple.com/us/app/dicotic/id6760433267">Get the app</a>
-          <a href="mailto:dicoticListening@gmail.com">Contact</a>
-          <a href="backstory.html">BackStory</a>
-          <a href="privacy.html">Privacy Policy</a>
-        </nav>
-        <p class="footer-meta">&copy; <span id="year"></span> dicotic. Web beta.</p>
+        <div class="beta-footer-side beta-footer-side--right">
+          <nav class="footer-links" aria-label="Footer">
+            <a href="https://apps.apple.com/us/app/dicotic/id6760433267">Get the app</a>
+            <a href="mailto:dicoticListening@gmail.com">Contact</a>
+            <a href="backstory.html">BackStory</a>
+            <a href="privacy.html">Privacy Policy</a>
+          </nav>
+        </div>
       </div>
     </footer>
 

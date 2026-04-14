@@ -9,6 +9,12 @@
   --beta-left: #a78bfa;
   --beta-right: #ea580c;
   --beta-radius: 12px;
+  /* Fixed footer: single row (left | swap/play | right) + safe area */
+  --beta-footer-scroll-padding: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+html.beta-app {
+  scroll-padding-bottom: var(--beta-footer-scroll-padding);
 }
 
 body.beta-page {
@@ -35,7 +41,7 @@ body.beta-page .btn-ghost {
   color: var(--beta-text-secondary);
 }
 
-/* Combined fixed footer — same element order as index.html (brand, links row + meta); center = dual play */
+/* Combined fixed footer: left stack | swap+play | right stack (header keeps primary branding; no duplicate logo here) */
 body.beta-page .beta-page-footer.site-footer {
   position: fixed;
   left: 0;
@@ -47,22 +53,52 @@ body.beta-page .beta-page-footer.site-footer {
   border-top: 1px solid var(--beta-border);
   background: linear-gradient(to top, rgba(10, 10, 11, 0.99), rgba(10, 10, 11, 0.94));
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.4);
+  overflow-x: hidden;
 }
 
-/* Row 1: brand | swap+play (column) | link cluster — mirrors index footer-inner + centered tab control */
 body.beta-page .beta-footer-inner.footer-inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
+  grid-template-rows: auto;
   align-items: center;
-  column-gap: 0.75rem;
-  row-gap: 0.45rem;
+  column-gap: 0.5rem;
+  row-gap: 0;
 }
 
-body.beta-page .beta-footer-inner .footer-brand {
+body.beta-page .beta-footer-side {
+  min-width: 0;
+}
+
+body.beta-page .beta-footer-side--left {
   grid-column: 1;
-  grid-row: 1;
   justify-self: start;
+  align-self: center;
+}
+
+body.beta-page .beta-footer-copyright {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--beta-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+body.beta-page .beta-footer-side--right {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+body.beta-page .beta-footer-side--right .footer-links {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  font-size: 0.78rem;
+  gap: 0.65rem 1.1rem;
 }
 
 body.beta-page .beta-footer-inner .beta-dual-play-cluster {
@@ -72,59 +108,43 @@ body.beta-page .beta-footer-inner .beta-dual-play-cluster {
   align-self: center;
 }
 
-body.beta-page .beta-footer-inner .footer-links {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
-  font-size: 0.8rem;
-  gap: 1.4rem;
-}
-
 body.beta-page .beta-footer-inner .footer-links a {
   color: var(--beta-text-secondary);
+  white-space: nowrap;
 }
 
-body.beta-page .beta-footer-inner .footer-links a:hover {
+body.beta-page .beta-footer-inner .footer-links a:hover,
+body.beta-page .beta-footer-inner .footer-links a:active {
   color: var(--beta-text);
 }
 
-body.beta-page .beta-footer-inner .footer-meta {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  width: 100%;
-  margin: 0;
-  padding-top: 0.15rem;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--beta-text-secondary);
-  text-align: left;
-}
-
-@media (max-width: 900px) {
+/* ≤1080px: tighten bar; stack link labels vertically on the right of dual play */
+@media (max-width: 1080px) {
   body.beta-page .beta-footer-inner.footer-inner {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
+    column-gap: 0.35rem;
   }
 
-  body.beta-page .beta-footer-inner .footer-brand {
-    justify-self: center;
+  body.beta-page .beta-footer-copyright {
+    font-size: 0.62rem;
+    line-height: 1.3;
+    max-width: 11rem;
+    hyphens: auto;
+    overflow-wrap: break-word;
   }
 
-  body.beta-page .beta-footer-inner .beta-dual-play-cluster {
-    grid-column: 1;
-    grid-row: auto;
+  body.beta-page .beta-footer-side--right .footer-links {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2rem;
+    font-size: 0.72rem;
   }
 
-  body.beta-page .beta-footer-inner .footer-links {
-    grid-column: 1;
-    justify-self: center;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  body.beta-page .beta-footer-inner .footer-meta {
-    text-align: center;
+  body.beta-page .beta-footer-inner .footer-links a {
+    white-space: normal;
+    text-align: right;
+    padding: 0.12rem 0;
+    max-width: 12rem;
+    line-height: 1.25;
   }
 }
 
@@ -140,9 +160,10 @@ body.beta-page .beta-footer-inner .footer-meta {
   border: 0;
 }
 
+/* Fixed footer does not consume layout height — pad main so last content clears it when scrolled */
 .beta-page .legal-main {
   padding-top: 2rem;
-  padding-bottom: 7.5rem;
+  padding-bottom: var(--beta-footer-scroll-padding);
 }
 
 .beta-page .legal-header h1 {
@@ -197,26 +218,14 @@ body.beta-page .beta-footer-inner .footer-meta {
   color: #fecaca;
 }
 
-.beta-page .beta-master {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0 0 1.25rem;
-  flex-wrap: wrap;
-  font-size: 0.82rem;
-  color: var(--beta-text-secondary);
-}
-
-.beta-page .beta-master input[type="range"] {
-  flex: 1;
-  min-width: 140px;
-  max-width: 280px;
-  accent-color: var(--beta-left);
+/* Match split-phone width: page + player can use up to 1080px (was 720px on .legal-container) */
+.beta-page .legal-container {
+  max-width: min(1080px, 100%);
 }
 
 /* Two-column player (home screen) */
 .beta-page .beta-player {
-  max-width: 900px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -595,8 +604,227 @@ body.beta-page .beta-footer-inner .footer-meta {
   outline-offset: 3px;
 }
 
-@media (max-width: 720px) {
+/* ---- Mobile & narrow tablets (≤1080px logical width): safe areas, touch, layout ---- */
+@media (max-width: 1080px) {
+  :root.beta-app {
+    /* Single-row footer + stacked right links; keep main scroll end clear without excess gap */
+    --beta-footer-scroll-padding: calc(11.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.beta-app {
+    color-scheme: dark;
+  }
+
+  body.beta-page {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+
+  body.beta-page .site-header .header-inner {
+    padding-left: max(0.85rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.85rem, env(safe-area-inset-right, 0px));
+    gap: 0.5rem;
+  }
+
+  body.beta-page .legal-main .container.legal-container {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+
+  body.beta-page .legal-main {
+    padding-top: max(1.25rem, env(safe-area-inset-top, 0px));
+  }
+
+  .beta-page .legal-header h1 {
+    font-size: clamp(1.35rem, 5vw + 0.5rem, 1.9rem);
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+  }
+
+  .beta-page .legal-header .legal-meta {
+    font-size: clamp(0.88rem, 2.4vw, 1rem);
+    line-height: 1.55;
+  }
+
+  .beta-page .beta-banner {
+    font-size: clamp(0.82rem, 2.2vw, 0.9rem);
+    padding: 0.65rem 0.85rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /**
+   * Squeezed split view: two channel columns side-by-side on one screen (≤1080px),
+   * matching “two single-column players” like the phone app — not stacked.
+   */
+  .beta-page .beta-player {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .beta-page .beta-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.3rem, 1.5vw, 0.55rem);
+    align-items: stretch;
+  }
+
+  .beta-page .beta-segment {
+    padding: 0.45rem 0.35rem 0.55rem;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .beta-page .beta-channel-label {
+    font-size: clamp(0.72rem, 2.2vw, 0.82rem);
+  }
+
+  .beta-page .beta-now-playing {
+    font-size: clamp(0.65rem, 1.9vw, 0.74rem);
+    line-height: 1.3;
+    min-height: 2.15em;
+  }
+
+  .beta-page .beta-transport {
+    gap: 0.15rem;
+  }
+
+  .beta-page .beta-transport .ionicon {
+    display: block;
+  }
+
+  .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main) {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main) svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .beta-page .beta-play-main {
+    width: 48px;
+    height: 48px;
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .beta-page .beta-play-main svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .beta-page .beta-progress-times {
+    font-size: 0.62rem;
+  }
+
+  .beta-page .beta-bottom-row {
+    gap: 0.35rem;
+  }
+
+  .beta-page .beta-small-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.2rem 0.25rem;
+    font-size: 0.55rem;
+    gap: 0.08rem;
+    touch-action: manipulation;
+  }
+
+  .beta-page .beta-small-btn .ionicon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .beta-page .beta-balance-label {
+    font-size: 0.62rem;
+  }
+
+  .beta-page .beta-pan-wrap {
+    height: 28px;
+  }
+
+  .beta-page .beta-pan-wrap input[type="range"] {
+    height: 28px;
+    min-height: 44px;
+  }
+
+  .beta-page .beta-vol-label {
+    font-size: 0.62rem;
+    width: 1.35rem;
+  }
+
+  .beta-page .beta-progress-wrap input[type="range"],
+  .beta-page .beta-pan-wrap input[type="range"],
+  .beta-page .beta-vol-row input[type="range"] {
+    min-height: 44px;
+  }
+
+  .beta-page .beta-icon-btn {
+    touch-action: manipulation;
+  }
+
+  .beta-page .beta-swap-tab,
+  .beta-page .beta-dual-play-btn {
+    touch-action: manipulation;
+  }
+
+  body.beta-page .btn-ghost {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  body.beta-page .beta-page-footer.site-footer {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  body.beta-page .beta-page-footer .footer-inner {
+    padding-left: max(0.85rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.85rem, env(safe-area-inset-right, 0px));
+  }
+
+  body.beta-page .beta-footer-inner .footer-links {
+    row-gap: 0.4rem;
+    column-gap: 0.85rem;
+    max-width: 100%;
+  }
+
+  body.beta-page .beta-footer-inner .footer-links a {
+    padding: 0.2rem 0;
+  }
+}
+
+/* Only below ~340px CSS width does stacked layout beat squeezed split */
+@media (max-width: 340px) {
   .beta-page .beta-columns {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+
+  .beta-page .beta-segment {
+    padding: 0.55rem 0.5rem 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .beta-page .legal-back-link {
+    font-size: 0.76rem;
+  }
+
+  body.beta-page .beta-footer-inner .footer-links {
+    font-size: 0.74rem;
+    column-gap: 0.65rem;
+  }
+
+  body.beta-page .beta-footer-copyright {
+    font-size: 0.6rem;
   }
 }

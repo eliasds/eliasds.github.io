@@ -12,7 +12,6 @@
   /** @type {HTMLAudioElement | null} */
   const audioRight = document.getElementById("beta-audio-right");
   const statusEl = document.getElementById("beta-status");
-  const masterVolumeEl = document.getElementById("beta-master-volume");
   const dualPlayBtn = document.getElementById("beta-dual-play");
   const swapBtn = document.getElementById("beta-swap-queues");
 
@@ -140,8 +139,8 @@
 
     ctx = new AC();
     masterGain = ctx.createGain();
-    var mv = masterVolumeEl ? parseFloat(masterVolumeEl.value) : 0.85;
-    masterGain.gain.value = Number.isFinite(mv) ? mv : 0.85;
+    /* Full-scale output; use system/hardware volume as the global control */
+    masterGain.gain.value = 1;
     masterGain.connect(ctx.destination);
 
     for (var i = 0; i < 2; i++) {
@@ -350,13 +349,6 @@
     a.addEventListener("pause", updatePlayLabels);
     a.addEventListener("ended", updatePlayLabels);
   });
-
-  if (masterVolumeEl) {
-    masterVolumeEl.addEventListener("input", function () {
-      var v = parseFloat(masterVolumeEl.value);
-      if (masterGain) masterGain.gain.value = Number.isFinite(v) ? v : 0.85;
-    });
-  }
 
   if (dualPlayBtn) {
     dualPlayBtn.addEventListener("click", function () {
