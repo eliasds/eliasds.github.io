@@ -21,7 +21,18 @@
   var CENTER_SNAP = 0.08;
   var SEEK_STEP = 15;
 
-  var trackMeta = [{ title: "No track loaded" }, { title: "No track loaded" }];
+  var trackMeta = [
+    { title: "No track loaded", artist: "" },
+    { title: "No track loaded", artist: "" },
+  ];
+
+  /** Remaining File objects after the first (per channel); for future queue UI */
+  var channelPendingFiles = [[], []];
+
+  /** Linear gain when Boost is on (per channel); off = 1 */
+  var BOOST_GAIN_ON = 1.55;
+  var speedPresets = [0.75, 1, 1.25, 1.5];
+  var speedIdx = [1, 1];
 
   /** @type {AudioContext | null} */
   var ctx = null;
@@ -29,14 +40,19 @@
   var masterGain = null;
   /** @type {GainNode[]} */
   var trackGains = [];
+  /** @type {GainNode[]} */
+  var boostGains = [];
   /** @type {StereoPannerNode[]} */
   var panners = [];
+  /** @type {boolean[]} */
+  var boostOn = [false, false];
 
   var audios = [audioLeft, audioRight];
 
   var ui = {
     left: {
       title: document.getElementById("beta-title-left"),
+      artist: document.getElementById("beta-artist-left"),
       loadBtn: document.getElementById("beta-load-left"),
       fileInput: document.getElementById("beta-file-left"),
       playBtn: document.getElementById("beta-play-left"),
@@ -48,9 +64,13 @@
       prev: document.getElementById("beta-prev-left"),
       next: document.getElementById("beta-next-left"),
       queue: document.getElementById("beta-queue-left"),
+      boost: document.getElementById("beta-boost-left"),
+      speed: document.getElementById("beta-speed-left"),
+      speedLabel: document.querySelector("#beta-speed-left .beta-speed-label"),
     },
     right: {
       title: document.getElementById("beta-title-right"),
+      artist: document.getElementById("beta-artist-right"),
       loadBtn: document.getElementById("beta-load-right"),
       fileInput: document.getElementById("beta-file-right"),
       playBtn: document.getElementById("beta-play-right"),
@@ -62,6 +82,9 @@
       prev: document.getElementById("beta-prev-right"),
       next: document.getElementById("beta-next-right"),
       queue: document.getElementById("beta-queue-right"),
+      boost: document.getElementById("beta-boost-right"),
+      speed: document.getElementById("beta-speed-right"),
+      speedLabel: document.querySelector("#beta-speed-right .beta-speed-label"),
     },
   };
 
@@ -89,14 +112,57 @@
     input.setAttribute("aria-valuenow", String(v));
   }
 
+  function formatSpeedLabel(rate) {
+    var s = String(rate);
+    if (s.indexOf(".") === -1) return s + "×";
+    return s.replace(/\.?0+$/, "") + "×";
+  }
+
+  function renderSpeedLabels() {
+    ["left", "right"].forEach(function (side) {
+      var idx = side === "left" ? 0 : 1;
+      var u = ui[side];
+      var rate = speedPresets[speedIdx[idx]] || 1;
+      if (u.speedLabel) u.speedLabel.textContent = formatSpeedLabel(rate);
+      if (u.speed) {
+        u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed " + formatSpeedLabel(rate));
+      }
+    });
+  }
+
   function renderTitles() {
     if (ui.left.title) {
       ui.left.title.textContent = trackMeta[0].title;
-      ui.left.title.classList.toggle("beta-now-playing--muted", trackMeta[0].title === "No track loaded");
+      ui.left.title.classList.toggle("beta-track-title--muted", trackMeta[0].title === "No track loaded");
+    }
+    if (ui.left.artist) {
+      var al = trackMeta[0].artist || "";
+      ui.left.artist.textContent = al;
+      ui.left.artist.classList.toggle("beta-track-artist--empty", !al);
     }
     if (ui.right.title) {
       ui.right.title.textContent = trackMeta[1].title;
-      ui.right.title.classList.toggle("beta-now-playing--muted", trackMeta[1].title === "No track loaded");
+      ui.right.title.classList.toggle("beta-track-title--muted", trackMeta[1].title === "No track loaded");
+    }
+    if (ui.right.artist) {
+      var ar = trackMeta[1].artist || "";
+      ui.right.artist.textContent = ar;
+      ui.right.artist.classList.toggle("beta-track-artist--empty", !ar);
+    }
+  }
+
+  function applyBoostToGraph() {
+    for (var i = 0; i < boostGains.length; i++) {
+      var g = boostGains[i];
+      if (!g) continue;
+      g.gain.value = boostOn[i] ? BOOST_GAIN_ON : 1;
+    }
+  }
+
+  function setBoostUi(idx) {
+    var u = idx === 0 ? ui.left : ui.right;
+    if (u.boost) {
+      u.boost.setAttribute("aria-pressed", boostOn[idx] ? "true" : "false");
     }
   }
 
@@ -128,6 +194,7 @@
   function ensureGraph() {
     if (ctx) {
       applyPansToGraph();
+      applyBoostToGraph();
       return resumeAudioContextIfNeeded();
     }
 
@@ -148,14 +215,20 @@
       var volEl = i === 0 ? ui.left.vol : ui.right.vol;
       var iv = volEl ? parseFloat(volEl.value) : 1;
       g.gain.value = Number.isFinite(iv) ? iv : 1;
+      var b = ctx.createGain();
+      b.gain.value = boostOn[i] ? BOOST_GAIN_ON : 1;
       var panner = ctx.createStereoPanner();
       var src = ctx.createMediaElementSource(audios[i]);
       src.connect(g);
-      g.connect(panner);
+      g.connect(b);
+      b.connect(panner);
       panner.connect(masterGain);
       trackGains.push(g);
+      boostGains.push(b);
       panners.push(panner);
     }
+
+    applyBoostToGraph();
 
     setPanInputValue(ui.left.pan, ui.left.pan ? ui.left.pan.value : -1);
     setPanInputValue(ui.right.pan, ui.right.pan ? ui.right.pan.value : 1);
@@ -182,6 +255,14 @@
       if (!u.seek.dataset.dragging) u.seek.value = String(el.currentTime || 0);
       u.timeEl.textContent = formatTime(el.currentTime);
       u.timeDur.textContent = formatTime(Number.isFinite(d) ? d : 0);
+      var wrap = u.seek.closest(".beta-progress-wrap");
+      if (wrap && wrap.style) {
+        var pct = 0;
+        if (Number.isFinite(d) && d > 0) {
+          pct = Math.max(0, Math.min(100, ((el.currentTime || 0) / d) * 100));
+        }
+        wrap.style.setProperty("--seek-progress", pct + "%");
+      }
     });
   }
 
@@ -190,10 +271,10 @@
     requestAnimationFrame(loopSeek);
   }
 
-  /** Ionicons 7 — play.svg / pause.svg */
+  /** Play triangle + chunky pause bars (app-like) */
   function channelPlayIcon(isPlaying) {
     return isPlaying
-      ? '<path fill="currentColor" d="M208 432h-48a16 16 0 01-16-16V96a16 16 0 0116-16h48a16 16 0 0116 16v320a16 16 0 01-16 16zM352 432h-48a16 16 0 01-16-16V96a16 16 0 0116-16h48a16 16 0 0116 16v320a16 16 0 01-16 16z"/>'
+      ? '<path fill="currentColor" d="M196 120h72v272h-72V120zm152 0h72v272h-72V120z"/>'
       : '<path fill="currentColor" d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"/>';
   }
 
@@ -205,7 +286,7 @@
       if (u.playBtn && a) {
         var playing = !a.paused;
         u.playBtn.innerHTML =
-          '<svg class="ionicon" width="52" height="52" viewBox="0 0 512 512" aria-hidden="true">' +
+          '<svg class="ionicon beta-play-glyph" width="68" height="68" viewBox="0 0 512 512" aria-hidden="true">' +
           channelPlayIcon(playing) +
           "</svg>";
         u.playBtn.setAttribute("aria-label", playing ? "Pause " + side + " channel" : "Play " + side + " channel");
@@ -215,7 +296,7 @@
     if (dualPlayBtn) {
       var bothPlaying = !audioLeft.paused && !audioRight.paused;
       dualPlayBtn.innerHTML =
-        '<svg class="ionicon" width="72" height="72" viewBox="0 0 512 512" aria-hidden="true">' +
+        '<svg class="ionicon beta-dual-play-glyph" width="88" height="88" viewBox="0 0 512 512" aria-hidden="true">' +
         channelPlayIcon(bothPlaying) +
         "</svg>";
       dualPlayBtn.setAttribute("aria-label", bothPlaying ? "Pause both channels" : "Play both channels");
@@ -231,8 +312,10 @@
         u.fileInput.click();
       });
       u.fileInput.addEventListener("change", function () {
-        var f = u.fileInput.files && u.fileInput.files[0];
-        if (!f) return;
+        var files = u.fileInput.files;
+        if (!files || files.length === 0) return;
+        var f = files[0];
+        channelPendingFiles[idx] = Array.prototype.slice.call(files, 1);
         ensureGraph()
           .then(function () {
             var a = audios[idx];
@@ -240,6 +323,7 @@
             if (prev && prev.indexOf("blob:") === 0) URL.revokeObjectURL(prev);
             a.src = URL.createObjectURL(f);
             trackMeta[idx].title = f.name || "Local file";
+            trackMeta[idx].artist = "";
             renderTitles();
             setStatus("");
             return a.play().catch(function () {
@@ -333,6 +417,27 @@
         }, 3200);
       });
     }
+
+    if (u.boost) {
+      u.boost.addEventListener("click", function () {
+        boostOn[idx] = !boostOn[idx];
+        setBoostUi(idx);
+        ensureGraph()
+          .then(function () {
+            applyBoostToGraph();
+          })
+          .catch(function () {});
+      });
+    }
+
+    if (u.speed) {
+      u.speed.addEventListener("click", function () {
+        speedIdx[idx] = (speedIdx[idx] + 1) % speedPresets.length;
+        var rate = speedPresets[speedIdx[idx]];
+        audios[idx].playbackRate = rate;
+        renderSpeedLabels();
+      });
+    }
   }
 
   wireChannel("left");
@@ -373,8 +478,8 @@
     var ar = audioRight;
     var srcL = al.src;
     var srcR = ar.src;
-    var metaL = trackMeta[0];
-    var metaR = trackMeta[1];
+    var metaL = { title: trackMeta[0].title, artist: trackMeta[0].artist || "" };
+    var metaR = { title: trackMeta[1].title, artist: trackMeta[1].artist || "" };
     var tL = al.currentTime;
     var tR = ar.currentTime;
     var pausedL = al.paused;
@@ -387,6 +492,9 @@
     ar.src = srcL || "";
     trackMeta[0] = metaR;
     trackMeta[1] = metaL;
+    var qTmp = channelPendingFiles[0];
+    channelPendingFiles[0] = channelPendingFiles[1];
+    channelPendingFiles[1] = qTmp;
 
     function finish() {
       if (al.src) {
@@ -434,6 +542,9 @@
 
   requestAnimationFrame(loopSeek);
   renderTitles();
+  renderSpeedLabels();
+  setBoostUi(0);
+  setBoostUi(1);
   updatePlayLabels();
 
   window.dicoticBeta = { ensureGraph: ensureGraph, swapQueues: swapQueues };
