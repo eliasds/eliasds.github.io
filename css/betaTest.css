@@ -318,6 +318,16 @@ body.beta-page .beta-tab-label {
   margin-right: auto;
 }
 
+.beta-page .beta-segment--left.beta-segment--drop-hover {
+  border-color: var(--beta-left);
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.35);
+}
+
+.beta-page .beta-segment--right.beta-segment--drop-hover {
+  border-color: var(--beta-right);
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.35);
+}
+
 /* Full-width stack: transport → title/artist → progress → Queue/Add (matches iOS column body) */
 .beta-page .beta-segment-stack {
   display: flex;

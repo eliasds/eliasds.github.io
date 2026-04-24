@@ -278,6 +278,49 @@
       : '<path fill="currentColor" d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"/>';
   }
 
+  /** Matches hidden file inputs' accept (audio/* + common extensions). */
+  function isLikelyAudioFile(file) {
+    if (!file || file.size === 0) return false;
+    var t = (file.type || "").toLowerCase();
+    if (t.indexOf("audio/") === 0) return true;
+    var n = (file.name || "").toLowerCase();
+    return /\.(mp3|m4a|aac|wav|ogg|flac|webm)$/.test(n);
+  }
+
+  function filterAudioFiles(fileList) {
+    if (!fileList || !fileList.length) return [];
+    return Array.prototype.filter.call(fileList, isLikelyAudioFile);
+  }
+
+  function dataTransferHasFiles(dt) {
+    if (!dt || !dt.types) return false;
+    for (var i = 0; i < dt.types.length; i++) {
+      if (dt.types[i] === "Files") return true;
+    }
+    return false;
+  }
+
+  function loadFilesIntoChannel(idx, files) {
+    if (!files || files.length === 0) return;
+    var f = files[0];
+    channelPendingFiles[idx] = files.slice(1);
+    ensureGraph()
+      .then(function () {
+        var a = audios[idx];
+        var prev = a.src;
+        if (prev && prev.indexOf("blob:") === 0) URL.revokeObjectURL(prev);
+        a.src = URL.createObjectURL(f);
+        trackMeta[idx].title = f.name || "Local file";
+        trackMeta[idx].artist = "";
+        renderTitles();
+        setStatus("");
+        return a.play().catch(function () {
+          setStatus("Could not start playback. Tap play after loading.", true);
+        });
+      })
+      .catch(function () {});
+  }
+
   function updatePlayLabels() {
     ["left", "right"].forEach(function (side) {
       var idx = side === "left" ? 0 : 1;
@@ -314,24 +357,49 @@
       u.fileInput.addEventListener("change", function () {
         var files = u.fileInput.files;
         if (!files || files.length === 0) return;
-        var f = files[0];
-        channelPendingFiles[idx] = Array.prototype.slice.call(files, 1);
-        ensureGraph()
-          .then(function () {
-            var a = audios[idx];
-            var prev = a.src;
-            if (prev && prev.indexOf("blob:") === 0) URL.revokeObjectURL(prev);
-            a.src = URL.createObjectURL(f);
-            trackMeta[idx].title = f.name || "Local file";
-            trackMeta[idx].artist = "";
-            renderTitles();
-            setStatus("");
-            return a.play().catch(function () {
-              setStatus("Could not start playback. Tap play after loading.", true);
-            });
-          })
-          .catch(function () {});
+        loadFilesIntoChannel(idx, Array.prototype.slice.call(files, 0));
+        u.fileInput.value = "";
       });
+    }
+
+    var segmentEl = document.querySelector(side === "left" ? ".beta-segment--left" : ".beta-segment--right");
+    if (segmentEl) {
+      var dragDepth = 0;
+      function clearDropHover() {
+        dragDepth = 0;
+        segmentEl.classList.remove("beta-segment--drop-hover");
+      }
+      segmentEl.addEventListener("dragenter", function (e) {
+        if (!dataTransferHasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        dragDepth++;
+        segmentEl.classList.add("beta-segment--drop-hover");
+      });
+      segmentEl.addEventListener("dragleave", function (e) {
+        if (!dataTransferHasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) segmentEl.classList.remove("beta-segment--drop-hover");
+      });
+      segmentEl.addEventListener("dragover", function (e) {
+        if (!dataTransferHasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        try {
+          e.dataTransfer.dropEffect = "copy";
+        } catch (err) {}
+      });
+      segmentEl.addEventListener("drop", function (e) {
+        if (!dataTransferHasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        clearDropHover();
+        var picked = filterAudioFiles(e.dataTransfer.files);
+        if (picked.length === 0) {
+          setStatus("Drop audio files only (for example MP3, M4A, or WAV).", true);
+          return;
+        }
+        loadFilesIntoChannel(idx, picked);
+      });
+      segmentEl.addEventListener("dragend", clearDropHover);
     }
 
     if (u.playBtn) {
