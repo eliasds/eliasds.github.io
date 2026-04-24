@@ -541,6 +541,17 @@
     });
   }
 
+  document.addEventListener("keydown", function (e) {
+    if (e.code !== "Space") return;
+    var tg = e.target;
+    if (tg instanceof HTMLElement && tg.isContentEditable) return;
+    if (tg instanceof HTMLInputElement || tg instanceof HTMLTextAreaElement || tg instanceof HTMLSelectElement) {
+      if (!(tg instanceof HTMLInputElement) || tg.type !== "range") return;
+    }
+    e.preventDefault();
+    if (dualPlayBtn) dualPlayBtn.click();
+  });
+
   function swapQueues() {
     var al = audioLeft;
     var ar = audioRight;
