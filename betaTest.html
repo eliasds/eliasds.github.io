@@ -112,7 +112,7 @@
                   </div>
                 </div>
                 <div class="beta-bottom-row">
-                  <button type="button" class="beta-small-btn" id="beta-queue-left" aria-label="Queue (coming soon)">
+                  <button type="button" class="beta-small-btn" id="beta-queue-left" aria-label="Open left queue">
                     <svg class="ionicon" width="24" height="24" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="none"
@@ -273,7 +273,7 @@
                     </svg>
                     Add
                   </button>
-                  <button type="button" class="beta-small-btn" id="beta-queue-right" aria-label="Queue (coming soon)">
+                  <button type="button" class="beta-small-btn" id="beta-queue-right" aria-label="Open right queue">
                     <svg class="ionicon" width="24" height="24" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="none"
@@ -476,6 +476,114 @@
         </div>
       </div>
     </footer>
+
+    <!-- Queue overlay: last in body so it paints above fixed footer on mobile; fixed = viewport -->
+    <div id="beta-queue-root" class="beta-queue-root" hidden aria-hidden="true">
+      <div id="beta-queue-backdrop" class="beta-queue-backdrop"></div>
+      <div
+        id="beta-queue-panel"
+        class="beta-queue-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="beta-queue-heading"
+      >
+        <div class="beta-queue-handle" aria-hidden="true"></div>
+        <header class="beta-queue-header">
+          <h2 id="beta-queue-heading" class="beta-queue-title">Queue</h2>
+          <div class="beta-queue-header-actions">
+            <button
+              type="button"
+              id="beta-queue-shuffle"
+              class="beta-queue-icon-btn"
+              aria-label="Shuffle queue"
+              aria-pressed="false"
+              title="Shuffle"
+            >
+              <svg class="ionicon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true">
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="32"
+                  d="M400 304l48 48-48 48M400 112l48 48-48 48M64 352h85.19a80 80 0 0066.56-35.62L256 256"
+                />
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="32"
+                  d="M64 160h85.19a80 80 0 0166.56 35.62l80.5 120.76A80 80 0 00362.81 352H416M416 160h-53.19a80 80 0 00-66.56 35.62L288 208"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              id="beta-queue-repeat"
+              class="beta-queue-icon-btn beta-queue-repeat-wrap"
+              aria-label="Repeat off"
+              aria-pressed="false"
+              title="Repeat"
+            >
+              <svg
+                class="ionicon beta-queue-repeat-icon"
+                width="28"
+                height="28"
+                viewBox="0 0 512 512"
+                aria-hidden="true"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="32"
+                  d="M320 120l48 48-48 48"
+                />
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="32"
+                  d="M352 168H144a80.24 80.24 0 00-80 80v16M192 392l-48-48 48-48"
+                />
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="32"
+                  d="M160 344h208a80.24 80.24 0 0080-80v-16"
+                />
+              </svg>
+              <span id="beta-queue-repeat-badge" class="beta-queue-repeat-badge" hidden aria-hidden="true">1</span>
+            </button>
+            <button type="button" id="beta-queue-close" class="beta-queue-icon-btn" aria-label="Close queue">
+              <svg class="ionicon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true">
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="32"
+                  d="M368 368L144 144M368 144L144 368"
+                />
+              </svg>
+            </button>
+          </div>
+        </header>
+        <div class="beta-queue-toolbar">
+          <button type="button" id="beta-queue-clear" class="beta-queue-clear-btn">Clear queue</button>
+        </div>
+        <div id="beta-queue-empty" class="beta-queue-empty" hidden>
+          <p class="beta-queue-empty-title">Queue is empty</p>
+          <p class="beta-queue-empty-hint">Add files with Add or drag audio onto a channel.</p>
+        </div>
+        <div id="beta-queue-list" class="beta-queue-list" role="list"></div>
+      </div>
+    </div>
 
     <script>
       var ym = document.getElementById("year-meta");
