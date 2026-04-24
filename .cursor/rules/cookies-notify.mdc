@@ -1,0 +1,22 @@
+---
+description: Require explicit user approval before any cookie-related implementation on this site.
+alwaysApply: true
+---
+
+# Cookies — notify before implementation
+
+Before **implementing or merging** any feature that uses **cookies** (or equivalent client identifiers stored like cookies), **stop and notify the project owner for explicit approval first**. Do not land cookie code “quietly.”
+
+## What counts
+
+- `document.cookie`, `Set-Cookie` / server-set cookies, or libraries that set first-party cookies  
+- Third-party scripts whose primary role is tracking/consent cookies (e.g. analytics that rely on cookies)  
+- Any change that **updates the privacy policy** or user-facing claims about data collection because of cookies  
+
+## What to include in the notification
+
+A short plan: **purpose**, **what is stored**, **who can read it** (first vs third party), **lifetime**, and whether **`privacy.html`** (or related copy) must change.
+
+## After approval
+
+Implement only what was approved; if scope grows, pause and confirm again.
