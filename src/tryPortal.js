@@ -101,6 +101,7 @@
       prev: document.getElementById("beta-prev-left"),
       next: document.getElementById("beta-next-left"),
       queue: document.getElementById("beta-queue-left"),
+      spotify: document.getElementById("beta-spotify-left"),
       boost: document.getElementById("beta-boost-left"),
       speed: document.getElementById("beta-speed-left"),
       speedLabel: document.querySelector("#beta-speed-left .beta-speed-label"),
@@ -119,10 +120,23 @@
       prev: document.getElementById("beta-prev-right"),
       next: document.getElementById("beta-next-right"),
       queue: document.getElementById("beta-queue-right"),
+      spotify: document.getElementById("beta-spotify-right"),
       boost: document.getElementById("beta-boost-right"),
       speed: document.getElementById("beta-speed-right"),
       speedLabel: document.querySelector("#beta-speed-right .beta-speed-label"),
     },
+  };
+
+  var spotifyRuntime = {
+    sdkPromise: null,
+    player: null,
+    deviceId: "",
+    activeSide: /** @type {ChannelSide | null} */ (null),
+    lastState: null,
+    ticker: null,
+    tokenValue: "",
+    tokenExpiresAt: 0,
+    promptUsed: false,
   };
 
   function sideToIdx(side) {
@@ -175,6 +189,281 @@
     try {
       fn.apply(null, args || []);
     } catch (err) {}
+  }
+
+  function getSpotifyConfig() {
+    var conf = window.dicoticSpotifyConfig;
+    return conf && typeof conf === "object" ? conf : {};
+  }
+
+  function getSdkGlobal() {
+    return window.Spotify || null;
+  }
+
+  function setSpotifyBtnState(side, isActive, isBusy) {
+    var btn = side === "left" ? ui.left.spotify : ui.right.spotify;
+    if (!btn) return;
+    btn.classList.toggle("beta-small-btn--active", !!isActive);
+    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    btn.disabled = !!isBusy;
+    btn.setAttribute("aria-label", (isActive ? "Disable" : "Enable") + " Spotify on " + side + " channel");
+  }
+
+  function refreshSpotifyButtons() {
+    var active = spotifyRuntime.activeSide;
+    setSpotifyBtnState("left", active === "left" && isPortalChannel(0), false);
+    setSpotifyBtnState("right", active === "right" && isPortalChannel(1), false);
+  }
+
+  function readTrackFromState(state) {
+    var tw = state && state.track_window ? state.track_window : null;
+    var cur = tw && tw.current_track ? tw.current_track : null;
+    var artists = cur && cur.artists && cur.artists.length ? cur.artists.map(function (a) { return a && a.name ? a.name : ""; }).filter(Boolean).join(", ") : "";
+    return {
+      title: cur && cur.name ? cur.name : "Spotify portal",
+      artist: artists || "",
+      duration: cur && Number.isFinite(cur.duration_ms) ? cur.duration_ms / 1000 : 0,
+      currentTime: state && Number.isFinite(state.position) ? state.position / 1000 : 0,
+      isPlaying: !!(state && state.paused === false),
+    };
+  }
+
+  function stopSpotifyTicker() {
+    if (spotifyRuntime.ticker !== null) {
+      clearInterval(spotifyRuntime.ticker);
+      spotifyRuntime.ticker = null;
+    }
+  }
+
+  function startSpotifyTicker() {
+    stopSpotifyTicker();
+    spotifyRuntime.ticker = setInterval(function () {
+      if (!spotifyRuntime.lastState || !spotifyRuntime.activeSide) return;
+      var side = spotifyRuntime.activeSide;
+      var idx = sideToIdx(side);
+      if (!isPortalChannel(idx)) return;
+      var patch = readTrackFromState(spotifyRuntime.lastState);
+      if (patch.isPlaying) {
+        patch.currentTime += 0.5;
+        var duration = Number.isFinite(patch.duration) ? patch.duration : 0;
+        if (duration > 0 && patch.currentTime > duration) patch.currentTime = duration;
+      }
+      updatePortalSideState(side, patch);
+    }, 500);
+  }
+
+  function applySpotifyStateToActiveSide() {
+    if (!spotifyRuntime.activeSide || !spotifyRuntime.lastState) return;
+    var side = spotifyRuntime.activeSide;
+    var idx = sideToIdx(side);
+    if (!isPortalChannel(idx)) return;
+    var patch = readTrackFromState(spotifyRuntime.lastState);
+    patch.playbackRate = 1;
+    patch.canSeek = true;
+    updatePortalSideState(side, patch);
+    if (patch.isPlaying) startSpotifyTicker();
+    else stopSpotifyTicker();
+  }
+
+  function getSpotifyToken() {
+    var now = Date.now();
+    if (spotifyRuntime.tokenValue && spotifyRuntime.tokenExpiresAt > now + 5000) {
+      return Promise.resolve(spotifyRuntime.tokenValue);
+    }
+    var conf = getSpotifyConfig();
+    if (typeof conf.getAccessToken === "function") {
+      return Promise.resolve()
+        .then(function () {
+          return conf.getAccessToken();
+        })
+        .then(function (result) {
+          if (typeof result === "string") {
+            spotifyRuntime.tokenValue = result;
+            spotifyRuntime.tokenExpiresAt = now + 50 * 60 * 1000;
+            return spotifyRuntime.tokenValue;
+          }
+          if (result && typeof result.token === "string") {
+            spotifyRuntime.tokenValue = result.token;
+            var ttlSec = Number.isFinite(result.expiresInSec) ? result.expiresInSec : 3000;
+            spotifyRuntime.tokenExpiresAt = now + Math.max(60, ttlSec) * 1000;
+            return spotifyRuntime.tokenValue;
+          }
+          throw new Error("Spotify token provider returned invalid payload");
+        });
+    }
+    if (!spotifyRuntime.promptUsed) {
+      spotifyRuntime.promptUsed = true;
+      var prompted = window.prompt("Paste Spotify access token for Web Playback SDK");
+      if (prompted) {
+        spotifyRuntime.tokenValue = prompted.trim();
+        spotifyRuntime.tokenExpiresAt = now + 50 * 60 * 1000;
+        return Promise.resolve(spotifyRuntime.tokenValue);
+      }
+    }
+    return Promise.reject(new Error("No Spotify access token provider configured"));
+  }
+
+  function loadSpotifySdk() {
+    if (getSdkGlobal()) return Promise.resolve(getSdkGlobal());
+    if (spotifyRuntime.sdkPromise) return spotifyRuntime.sdkPromise;
+    spotifyRuntime.sdkPromise = new Promise(function (resolve, reject) {
+      var existing = document.getElementById("spotify-player-sdk");
+      if (existing) {
+        existing.addEventListener("load", function () {
+          resolve(getSdkGlobal());
+        });
+        existing.addEventListener("error", function () {
+          reject(new Error("Spotify SDK script failed"));
+        });
+        return;
+      }
+      var script = document.createElement("script");
+      script.id = "spotify-player-sdk";
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.async = true;
+      window.onSpotifyWebPlaybackSDKReady = function () {
+        resolve(getSdkGlobal());
+      };
+      script.addEventListener("error", function () {
+        reject(new Error("Failed to load Spotify SDK"));
+      });
+      document.head.appendChild(script);
+    });
+    return spotifyRuntime.sdkPromise;
+  }
+
+  function buildSpotifyPortalDescriptor() {
+    return {
+      sourceKind: "portal",
+      title: "Spotify portal",
+      artist: "",
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+      playbackRate: 1,
+      canSeek: true,
+      onPlayPause: function (nextPlaying) {
+        if (!spotifyRuntime.player) return;
+        if (nextPlaying) spotifyRuntime.player.resume();
+        else spotifyRuntime.player.pause();
+      },
+      onSeek: function (seconds) {
+        if (!spotifyRuntime.player || !Number.isFinite(seconds)) return;
+        spotifyRuntime.player.seek(Math.floor(Math.max(0, seconds) * 1000));
+      },
+      onNext: function () {
+        if (!spotifyRuntime.player) return;
+        spotifyRuntime.player.nextTrack();
+      },
+      onPrev: function () {
+        if (!spotifyRuntime.player) return;
+        spotifyRuntime.player.previousTrack();
+      },
+      onSetSpeed: function () {},
+      onSwapToSide: function (nextSide) {
+        spotifyRuntime.activeSide = nextSide;
+        refreshSpotifyButtons();
+        applySpotifyStateToActiveSide();
+      },
+    };
+  }
+
+  function initSpotifyPlayer() {
+    if (spotifyRuntime.player) return Promise.resolve(spotifyRuntime.player);
+    return loadSpotifySdk().then(function (SpotifyNS) {
+      if (!SpotifyNS || typeof SpotifyNS.Player !== "function") {
+        throw new Error("Spotify SDK unavailable");
+      }
+      var conf = getSpotifyConfig();
+      var playerName = conf.playerName || "dicotic Web beta";
+      spotifyRuntime.player = new SpotifyNS.Player({
+        name: playerName,
+        getOAuthToken: function (cb) {
+          getSpotifyToken()
+            .then(function (token) {
+              cb(token);
+            })
+            .catch(function () {
+              cb("");
+            });
+        },
+        volume: 0.8,
+      });
+
+      spotifyRuntime.player.addListener("ready", function (payload) {
+        spotifyRuntime.deviceId = payload && payload.device_id ? payload.device_id : "";
+        setStatus("Spotify player ready. Transfer playback to this device in Spotify.", false);
+      });
+      spotifyRuntime.player.addListener("not_ready", function () {
+        spotifyRuntime.deviceId = "";
+      });
+      spotifyRuntime.player.addListener("player_state_changed", function (state) {
+        spotifyRuntime.lastState = state || null;
+        applySpotifyStateToActiveSide();
+      });
+      spotifyRuntime.player.addListener("authentication_error", function (e) {
+        setStatus("Spotify auth error: " + (e && e.message ? e.message : "unknown"), true);
+      });
+      spotifyRuntime.player.addListener("account_error", function (e2) {
+        setStatus("Spotify account error: " + (e2 && e2.message ? e2.message : "Premium required"), true);
+      });
+      spotifyRuntime.player.addListener("initialization_error", function (e3) {
+        setStatus("Spotify init error: " + (e3 && e3.message ? e3.message : "unknown"), true);
+      });
+      spotifyRuntime.player.addListener("playback_error", function (e4) {
+        setStatus("Spotify playback error: " + (e4 && e4.message ? e4.message : "unknown"), true);
+      });
+
+      return spotifyRuntime.player.connect().then(function (ok) {
+        if (!ok) throw new Error("Spotify connect failed");
+        return spotifyRuntime.player;
+      });
+    });
+  }
+
+  function enableSpotifyOnSide(side) {
+    var targetIdx = sideToIdx(side);
+    var otherSide = side === "left" ? "right" : "left";
+    var otherIdx = sideToIdx(otherSide);
+    setSpotifyBtnState("left", false, true);
+    setSpotifyBtnState("right", false, true);
+    return initSpotifyPlayer()
+      .then(function () {
+        if (isPortalChannel(otherIdx)) {
+          setSideSource(otherSide, { sourceKind: "local" });
+        }
+        spotifyRuntime.activeSide = side;
+        setSideSource(side, buildSpotifyPortalDescriptor());
+        applySpotifyStateToActiveSide();
+        refreshSpotifyButtons();
+        setStatus("Spotify enabled on " + side + " channel.", false);
+      })
+      .catch(function (err) {
+        setStatus("Could not enable Spotify: " + (err && err.message ? err.message : "unknown"), true);
+        refreshSpotifyButtons();
+      });
+  }
+
+  function disableSpotifyOnSide(side) {
+    var idx = sideToIdx(side);
+    if (!isPortalChannel(idx)) return;
+    if (spotifyRuntime.activeSide === side) spotifyRuntime.activeSide = null;
+    setSideSource(side, { sourceKind: "local" });
+    stopSpotifyTicker();
+    if (spotifyRuntime.player) {
+      spotifyRuntime.player.pause().catch(function () {});
+    }
+    refreshSpotifyButtons();
+    setStatus("Spotify disabled on " + side + " channel.", false);
+  }
+
+  function toggleSpotifyForSide(side) {
+    var idx = sideToIdx(side);
+    if (isPortalChannel(idx)) {
+      disableSpotifyOnSide(side);
+      return;
+    }
+    enableSpotifyOnSide(side);
   }
 
   function setStatus(msg, isError) {
@@ -1208,6 +1497,12 @@
       });
     }
 
+    if (u.spotify) {
+      u.spotify.addEventListener("click", function () {
+        toggleSpotifyForSide(side);
+      });
+    }
+
     if (u.boost) {
       u.boost.addEventListener("click", function () {
         boostOn[idx] = !boostOn[idx];
@@ -1580,6 +1875,7 @@
     updatePlayLabels();
     updateSeekUi();
     refreshQueuePanelIfOpen();
+    refreshSpotifyButtons();
   }
 
   function updatePortalSideState(side, patch) {
@@ -1600,9 +1896,14 @@
   setBoostUi(0);
   setBoostUi(1);
   updatePlayLabels();
+  refreshSpotifyButtons();
 
   window.dicoticBeta = {
     ensureGraph: ensureGraph,
+    ensureSpotifyPlayer: initSpotifyPlayer,
+    getSpotifyDeviceId: function () {
+      return spotifyRuntime.deviceId || "";
+    },
     swapQueues: swapQueues,
     openQueue: openQueuePanel,
     closeQueue: closeQueuePanel,
