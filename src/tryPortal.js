@@ -1525,6 +1525,24 @@
       : '<path fill="currentColor" d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"/>';
   }
 
+  function getChannelPlayingState(idx) {
+    if (channelMode[idx] === "spotify" && spotifyChannelIdx === idx && spotifyState) {
+      return !spotifyState.paused;
+    }
+    return !audios[idx].paused;
+  }
+
+  function getDualPlaybackState() {
+    var leftPlaying = getChannelPlayingState(0);
+    var rightPlaying = getChannelPlayingState(1);
+    return {
+      leftPlaying: leftPlaying,
+      rightPlaying: rightPlaying,
+      anyPlaying: leftPlaying || rightPlaying,
+      bothPlaying: leftPlaying && rightPlaying,
+    };
+  }
+
   function isLikelyAudioFile(file) {
     if (!file || file.size === 0) return false;
     var t = (file.type || "").toLowerCase();
@@ -1673,10 +1691,7 @@
       var u = ui[side];
       var a = audios[idx];
       if (u.playBtn && a) {
-        var playing = !a.paused;
-        if (channelMode[idx] === "spotify" && spotifyChannelIdx === idx && spotifyState) {
-          playing = !spotifyState.paused;
-        }
+        var playing = getChannelPlayingState(idx);
         u.playBtn.innerHTML =
           '<svg class="ionicon beta-play-glyph" width="68" height="68" viewBox="0 0 512 512" aria-hidden="true">' +
           channelPlayIcon(playing) +
@@ -1686,14 +1701,12 @@
     });
 
     if (dualPlayBtn) {
-      var leftPlaying = channelMode[0] === "spotify" && spotifyChannelIdx === 0 && spotifyState ? !spotifyState.paused : !audioLeft.paused;
-      var rightPlaying = channelMode[1] === "spotify" && spotifyChannelIdx === 1 && spotifyState ? !spotifyState.paused : !audioRight.paused;
-      var bothPlaying = leftPlaying && rightPlaying;
+      var dualState = getDualPlaybackState();
       dualPlayBtn.innerHTML =
         '<svg class="ionicon beta-dual-play-glyph" width="88" height="88" viewBox="0 0 512 512" aria-hidden="true">' +
-        channelPlayIcon(bothPlaying) +
+        channelPlayIcon(dualState.anyPlaying) +
         "</svg>";
-      dualPlayBtn.setAttribute("aria-label", bothPlaying ? "Pause both channels" : "Play both channels");
+      dualPlayBtn.setAttribute("aria-label", dualState.anyPlaying ? "Pause both channels" : "Play both channels");
     }
   }
 
@@ -2003,31 +2016,34 @@
 
   if (dualPlayBtn) {
     dualPlayBtn.addEventListener("click", function () {
+      var shouldPauseBoth = getDualPlaybackState().anyPlaying;
       var leftAction =
         channelMode[0] === "spotify"
           ? ensureSpotifyPlayer().then(function () {
               if (!spotifyPlayer) return;
-              return spotifyPlayer.getCurrentState().then(function (state) {
-                if (!state || state.paused) return spotifyPlayer.resume();
-                return spotifyPlayer.pause();
-              });
+              if (shouldPauseBoth) return spotifyPlayer.pause();
+              return spotifyPlayer.resume();
             })
           : ensureGraph().then(function () {
-              if (audioLeft.paused) return audioLeft.play();
-              audioLeft.pause();
+              if (shouldPauseBoth) {
+                audioLeft.pause();
+                return;
+              }
+              return audioLeft.play();
             });
       var rightAction =
         channelMode[1] === "spotify"
           ? ensureSpotifyPlayer().then(function () {
               if (!spotifyPlayer) return;
-              return spotifyPlayer.getCurrentState().then(function (state) {
-                if (!state || state.paused) return spotifyPlayer.resume();
-                return spotifyPlayer.pause();
-              });
+              if (shouldPauseBoth) return spotifyPlayer.pause();
+              return spotifyPlayer.resume();
             })
           : ensureGraph().then(function () {
-              if (audioRight.paused) return audioRight.play();
-              audioRight.pause();
+              if (shouldPauseBoth) {
+                audioRight.pause();
+                return;
+              }
+              return audioRight.play();
             });
       Promise.all([leftAction, rightAction]).catch(function () {
         setStatus("Playback blocked or no audio loaded.", true);
