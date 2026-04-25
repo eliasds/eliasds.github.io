@@ -500,6 +500,22 @@
     }, 2500);
   }
 
+  function debugLog(runId, hypothesisId, location, message, data) {
+    fetch("http://127.0.0.1:7661/ingest/9aa15d7f-1109-489b-b396-9358a082e65d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "39d22a" },
+      body: JSON.stringify({
+        sessionId: "39d22a",
+        runId: runId,
+        hypothesisId: hypothesisId,
+        location: location,
+        message: message,
+        data: data,
+        timestamp: Date.now(),
+      }),
+    }).catch(function () {});
+  }
+
   function clampPan(p) {
     return Math.max(-1, Math.min(1, p));
   }
