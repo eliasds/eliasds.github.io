@@ -59,11 +59,7 @@
           <h1>dicotic in the browser</h1>
         </header>
 
-        <p class="beta-banner" role="note">
-          <strong>Beta.</strong> Use headphones to hear stereo balance clearly.
-        </p>
-
-        <div id="beta-status" class="beta-status" role="status" aria-live="polite" hidden></div>
+        <div id="beta-status" class="beta-status" role="status" aria-live="polite">Beta.</div>
 
         <audio id="beta-audio-left" preload="metadata" playsinline></audio>
         <audio id="beta-audio-right" preload="metadata" playsinline></audio>
@@ -617,6 +613,85 @@
           <p class="beta-queue-empty-hint">Add files with Add or drag audio onto a channel.</p>
         </div>
         <div id="beta-queue-list" class="beta-queue-list" role="list"></div>
+      </div>
+    </div>
+
+    <div id="beta-spotify-root" class="beta-spotify-root" hidden aria-hidden="true">
+      <div id="beta-spotify-backdrop" class="beta-spotify-backdrop"></div>
+      <div
+        id="beta-spotify-panel"
+        class="beta-spotify-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="beta-spotify-title"
+      >
+        <div class="beta-spotify-handle" aria-hidden="true"></div>
+        <header class="beta-spotify-header">
+          <h2 id="beta-spotify-title" class="beta-spotify-title">Spotify</h2>
+          <button type="button" id="beta-spotify-close" class="beta-spotify-icon-btn" aria-label="Close Spotify panel">
+            <svg class="ionicon" width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="32"
+                d="M368 368L144 144M368 144L144 368"
+              />
+            </svg>
+          </button>
+        </header>
+        <div class="beta-spotify-actions">
+          <button type="button" id="beta-spotify-transfer" class="beta-spotify-btn" aria-label="Connect Spotify to this device">
+            <svg class="ionicon" width="22" height="22" viewBox="0 0 512 512" aria-hidden="true">
+              <circle cx="256" cy="256" r="256" fill="currentColor"></circle>
+              <path d="M374.56 357.16a19 19 0 0 1-26.2 6.38c-71.75-43.85-162.08-53.78-268.5-29.46a19 19 0 1 1-8.45-37.16c116.4-26.53 216.48-15.22 296.85 33.9a19 19 0 0 1 6.3 26.34z" fill="#0a0a0b"></path>
+              <path d="M412 274.64a23.8 23.8 0 0 1-32.74 8c-82.14-50.49-207.48-65.09-304.65-35.55a23.8 23.8 0 0 1-13.86-45.49c111.68-33.96 251-17.52 343.61 39.36a23.8 23.8 0 0 1 7.64 33.68z" fill="#0a0a0b"></path>
+              <path d="M415.28 189.16c-98.45-58.43-260.9-63.73-355-35.2a28.53 28.53 0 0 1-16.53-54.55c108.42-32.87 287.06-26.87 400.76 40.58a28.53 28.53 0 0 1-29.23 49.17z" fill="#0a0a0b"></path>
+            </svg>
+            <span class="beta-spotify-btn-text"><span>Connect</span><span>Spotify</span></span>
+          </button>
+          <button type="button" id="beta-spotify-refresh" class="beta-spotify-btn" aria-label="Refresh playlists">
+            <svg class="ionicon" width="22" height="22" viewBox="0 0 512 512" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="34"
+                d="M320 120l48 48-48 48M352 168H144a80.24 80.24 0 00-80 80v16M192 392l-48-48 48-48M160 344h208a80.24 80.24 0 0080-80v-16"
+              />
+            </svg>
+            <span class="beta-spotify-btn-text"><span>Refresh</span><span>Playlists</span></span>
+          </button>
+          <button type="button" id="beta-spotify-disable" class="beta-spotify-btn" aria-label="Disable Spotify">
+            <svg class="ionicon" width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="40"
+                d="M376 144L136 384M136 144l240 240"
+              />
+            </svg>
+            <span class="beta-spotify-btn-text"><span>Disable</span><span>Spotify</span></span>
+          </button>
+        </div>
+        <p id="beta-spotify-hint" class="beta-spotify-hint">Choose a playlist and start it on this device.</p>
+        <div id="beta-spotify-empty" class="beta-spotify-empty" hidden>No playlists found for this account.</div>
+        <div id="beta-spotify-list" class="beta-spotify-list" role="list"></div>
+        <div class="beta-spotify-footer">
+          <button type="button" id="beta-spotify-play" class="beta-spotify-play-btn">
+            <svg class="ionicon" width="17" height="17" viewBox="0 0 512 512" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"
+              />
+            </svg>
+            <span id="beta-spotify-play-label">Play</span>
+          </button>
+        </div>
       </div>
     </div>
 
