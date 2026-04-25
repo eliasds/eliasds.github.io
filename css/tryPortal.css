@@ -784,9 +784,44 @@ body.beta-page .beta-tab-label {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.beta-page .beta-small-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+}
+
 .beta-page .beta-small-btn svg {
   color: var(--beta-text);
   opacity: 0.85;
+}
+
+.beta-page .beta-small-btn--spotify {
+  color: #1db954;
+}
+
+.beta-page .beta-small-btn--spotify svg {
+  color: #1db954;
+  opacity: 1;
+}
+
+.beta-page .beta-small-btn--spotify.beta-small-btn--active {
+  background: rgba(29, 185, 84, 0.14);
+  color: #6ee7a2;
+}
+
+.beta-page .beta-small-btn--spotify.beta-small-btn--active svg {
+  color: #6ee7a2;
+}
+
+.beta-page .beta-unsupported {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+}
+
+.beta-page .beta-unsupported .beta-tool-btn,
+.beta-page .beta-unsupported input[type="range"] {
+  pointer-events: none;
 }
 
 /* Balance — matches PanSlider: track + center notch + thick handle via range styling */
