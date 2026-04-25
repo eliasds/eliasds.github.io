@@ -25,6 +25,10 @@
   const queueRepeatBtn = document.getElementById("beta-queue-repeat");
   const queueCloseBtn = document.getElementById("beta-queue-close");
   const queueClearBtn = document.getElementById("beta-queue-clear");
+  const queueLoadMoreBtn = document.getElementById("beta-queue-load-more");
+  const queueViewToggle = document.getElementById("beta-queue-view-toggle");
+  const queueViewQueueBtn = document.getElementById("beta-queue-view-queue");
+  const queueViewLibraryBtn = document.getElementById("beta-queue-view-library");
   const queueEmptyEl = document.getElementById("beta-queue-empty");
 
   if (!audioLeft || !audioRight) return;
@@ -45,6 +49,7 @@
     "user-read-private",
     "user-read-playback-state",
     "user-modify-playback-state",
+    "user-library-read",
   ].join(" ");
 
   /** @typedef {'left'|'right'} ChannelSide */
@@ -70,11 +75,17 @@
 
   /** Which channel queue UI is showing, or null if closed. */
   var queuePanelChannel = /** @type {ChannelSide | null} */ (null);
+  var queuePanelView = /** @type {"queue"|"library"} */ ("queue");
   var channelMode = /** @type {("local"|"spotify")[]} */ (["local", "local"]);
   var localPanBeforeSpotify = [-1, 1];
   var spotifyChannelIdx = /** @type {number | null} */ (null);
   var spotifyQueueItems = [];
   var spotifyQueueNowPlaying = null;
+  var spotifyLibraryItems = [];
+  var spotifyLibraryOffset = 0;
+  var spotifyLibraryHasMore = false;
+  var spotifyLibraryLoading = false;
+  var spotifyLibraryError = "";
   var spotifyState = null;
   var spotifyDeviceId = "";
   var spotifySdkReady = false;
@@ -223,6 +234,28 @@
     } catch (e) {}
   }
 
+  function saveSpotifyPendingChannel(chIdx) {
+    try {
+      sessionStorage.setItem(spotifyStorageKey("pending_channel"), String(chIdx));
+    } catch (e) {}
+  }
+
+  function consumeSpotifyPendingChannel() {
+    try {
+      var raw = sessionStorage.getItem(spotifyStorageKey("pending_channel"));
+      sessionStorage.removeItem(spotifyStorageKey("pending_channel"));
+      if (raw === "0" || raw === "1") return parseInt(raw, 10);
+    } catch (e) {}
+    return null;
+  }
+
+  function clearSpotifyOauthTransient() {
+    try {
+      sessionStorage.removeItem(spotifyStorageKey("pkce_verifier"));
+      sessionStorage.removeItem(spotifyStorageKey("oauth_state"));
+    } catch (e) {}
+  }
+
   function getRuntimeRedirectUri() {
     if (typeof window === "undefined") return SPOTIFY_REDIRECT_URI;
     var p = window.location.protocol + "//" + window.location.host + window.location.pathname;
@@ -230,7 +263,7 @@
     return SPOTIFY_REDIRECT_URI;
   }
 
-  function spotifyAuthStart() {
+  function spotifyAuthStart(chIdx) {
     var clientId = getSpotifyClientId();
     if (!clientId) {
       setStatus("Spotify client ID is missing. Set window.__SPOTIFY_CLIENT_ID__.", true);
@@ -242,6 +275,8 @@
       var state = randomVerifier(24);
       sessionStorage.setItem(spotifyStorageKey("pkce_verifier"), verifier);
       sessionStorage.setItem(spotifyStorageKey("oauth_state"), state);
+      if (chIdx === 0 || chIdx === 1) saveSpotifyPendingChannel(chIdx);
+      setStatus("Continue in Spotify to authorize dicotic.", false);
       var qs = new URLSearchParams({
         response_type: "code",
         client_id: clientId,
@@ -431,6 +466,25 @@
           return spotifyPlayer;
         });
       });
+  }
+
+  function waitForSpotifyDevice(timeoutMs) {
+    if (spotifyDeviceId) return Promise.resolve(spotifyDeviceId);
+    var timeout = Math.max(500, timeoutMs || 5000);
+    return new Promise(function (resolve, reject) {
+      var startedAt = Date.now();
+      var timer = setInterval(function () {
+        if (spotifyDeviceId) {
+          clearInterval(timer);
+          resolve(spotifyDeviceId);
+          return;
+        }
+        if (Date.now() - startedAt >= timeout) {
+          clearInterval(timer);
+          reject(new Error("spotify device unavailable"));
+        }
+      }, 120);
+    });
   }
 
   function pollSpotifyPlaybackState() {
@@ -924,6 +978,30 @@
     );
   }
 
+  function updateQueueViewControls(chIdx) {
+    var spotifyMode = channelMode[chIdx] === "spotify";
+    if (queueViewToggle) queueViewToggle.hidden = !spotifyMode;
+    if (!spotifyMode) queuePanelView = "queue";
+    if (queueViewQueueBtn) {
+      var queueActive = queuePanelView === "queue";
+      queueViewQueueBtn.classList.toggle("beta-queue-view-btn--active", queueActive);
+      queueViewQueueBtn.setAttribute("aria-pressed", queueActive ? "true" : "false");
+    }
+    if (queueViewLibraryBtn) {
+      var libraryActive = queuePanelView === "library";
+      queueViewLibraryBtn.classList.toggle("beta-queue-view-btn--active", libraryActive);
+      queueViewLibraryBtn.setAttribute("aria-pressed", libraryActive ? "true" : "false");
+    }
+    if (queueClearBtn) queueClearBtn.hidden = spotifyMode && queuePanelView === "library";
+    if (queueLoadMoreBtn) queueLoadMoreBtn.hidden = !(spotifyMode && queuePanelView === "library" && spotifyLibraryHasMore);
+  }
+
+  function setQueuePanelView(view) {
+    if (view !== "queue" && view !== "library") return;
+    queuePanelView = view;
+    refreshQueuePanelIfOpen();
+  }
+
   function fetchSpotifyQueue() {
     return spotifyApi("/me/player/queue")
       .then(function (data) {
@@ -933,6 +1011,67 @@
       .catch(function () {
         spotifyQueueNowPlaying = null;
         spotifyQueueItems = [];
+      });
+  }
+
+  function fetchSpotifyLibrary(opts) {
+    opts = opts || {};
+    var reset = !!opts.reset;
+    if (spotifyLibraryLoading) return Promise.resolve();
+    if (reset) {
+      spotifyLibraryItems = [];
+      spotifyLibraryOffset = 0;
+      spotifyLibraryHasMore = false;
+      spotifyLibraryError = "";
+    }
+    spotifyLibraryLoading = true;
+    var offset = reset ? 0 : spotifyLibraryOffset;
+    return spotifyApi("/me/tracks?limit=25&offset=" + String(offset))
+      .then(function (data) {
+        var items = data && Array.isArray(data.items) ? data.items : [];
+        var tracks = [];
+        for (var i = 0; i < items.length; i++) {
+          var row = items[i];
+          if (row && row.track && row.track.uri) tracks.push(row.track);
+        }
+        if (reset) spotifyLibraryItems = tracks;
+        else spotifyLibraryItems = spotifyLibraryItems.concat(tracks);
+        spotifyLibraryOffset = offset + items.length;
+        spotifyLibraryHasMore = !!(data && data.next);
+        spotifyLibraryError = "";
+      })
+      .catch(function (err) {
+        spotifyLibraryError = err && err.message ? err.message : "Could not load Spotify library.";
+      })
+      .then(function () {
+        spotifyLibraryLoading = false;
+      });
+  }
+
+  function spotifyPlaybackUri(uri) {
+    if (!uri) return Promise.reject(new Error("missing spotify uri"));
+    return ensureSpotifyPlayer()
+      .then(function () {
+        return waitForSpotifyDevice(5000);
+      })
+      .then(function (deviceId) {
+        return spotifyApi("/me/player/play?device_id=" + encodeURIComponent(deviceId), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uris: [uri] }),
+        });
+      });
+  }
+
+  function spotifyAddUriToQueue(uri) {
+    if (!uri) return Promise.reject(new Error("missing spotify uri"));
+    return ensureSpotifyPlayer()
+      .then(function () {
+        return waitForSpotifyDevice(5000);
+      })
+      .then(function (deviceId) {
+        var qs = new URLSearchParams({ uri: uri, device_id: deviceId });
+        return spotifyApi("/me/player/queue?" + qs.toString(), { method: "POST" });
       });
   }
 
@@ -973,14 +1112,107 @@
     }
   }
 
+  function renderSpotifyLibraryList(chIdx) {
+    if (!queueListEl || !queueHeading) return;
+    var label = chIdx === 0 ? "Left Spotify library" : "Right Spotify library";
+    queueHeading.textContent = label;
+    queueHeading.style.color = chIdx === 0 ? "var(--beta-left)" : "var(--beta-right)";
+    queueListEl.innerHTML = "";
+    if (queueEmptyEl) {
+      var empty = !spotifyLibraryLoading && spotifyLibraryItems.length === 0;
+      var loadingEmpty = spotifyLibraryLoading && spotifyLibraryItems.length === 0;
+      queueEmptyEl.hidden = !(empty || loadingEmpty);
+      if (loadingEmpty) {
+        var loadingTitleEl = queueEmptyEl.querySelector(".beta-queue-empty-title");
+        var loadingHintEl = queueEmptyEl.querySelector(".beta-queue-empty-hint");
+        if (loadingTitleEl) loadingTitleEl.textContent = "Loading Spotify library";
+        if (loadingHintEl) loadingHintEl.textContent = "Fetching your saved tracks...";
+      } else if (empty) {
+        var titleEl = queueEmptyEl.querySelector(".beta-queue-empty-title");
+        var hintEl = queueEmptyEl.querySelector(".beta-queue-empty-hint");
+        if (spotifyLibraryError) {
+          if (titleEl) titleEl.textContent = "Spotify library unavailable";
+          if (hintEl) hintEl.textContent = spotifyLibraryError;
+        } else {
+          if (titleEl) titleEl.textContent = "No saved tracks found";
+          if (hintEl) hintEl.textContent = "Save tracks in Spotify, then open Library again.";
+        }
+      }
+    }
+    for (var i = 0; i < spotifyLibraryItems.length; i++) {
+      (function (rowIndex) {
+        var item = spotifyLibraryItems[rowIndex];
+        var row = document.createElement("div");
+        row.className = "beta-queue-row";
+        row.setAttribute("role", "listitem");
+        var idxEl = document.createElement("span");
+        idxEl.className = "beta-queue-row-idx";
+        idxEl.textContent = String(rowIndex + 1);
+        var titleBtn = document.createElement("button");
+        titleBtn.type = "button";
+        titleBtn.className = "beta-queue-row-title";
+        titleBtn.textContent = spotifyTrackName(item);
+        var artist = spotifyTrackArtist(item);
+        if (artist) titleBtn.textContent += " - " + artist;
+        titleBtn.addEventListener("click", function () {
+          spotifyPlaybackUri(item.uri)
+            .then(function () {
+              setStatus("Playing from Spotify library.", false);
+              fetchSpotifyQueue().then(function () {
+                refreshQueuePanelIfOpen();
+              });
+            })
+            .catch(function (err) {
+              var msg = err && err.message ? err.message : "Could not play Spotify track.";
+              setStatus(msg, true);
+            });
+        });
+        var addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "beta-queue-row-action";
+        addBtn.textContent = "Add";
+        addBtn.setAttribute("aria-label", "Add track to Spotify queue");
+        addBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          spotifyAddUriToQueue(item.uri)
+            .then(function () {
+              setStatus("Added to Spotify queue.", false);
+              fetchSpotifyQueue().then(function () {
+                refreshQueuePanelIfOpen();
+              });
+            })
+            .catch(function (err) {
+              var msg = err && err.message ? err.message : "Could not add track to Spotify queue.";
+              setStatus(msg, true);
+            });
+        });
+        row.appendChild(idxEl);
+        row.appendChild(titleBtn);
+        row.appendChild(addBtn);
+        queueListEl.appendChild(row);
+      })(i);
+    }
+  }
+
   function renderQueueList() {
     if (!queueListEl || !queueHeading || !queuePanelChannel) return;
     var chIdx = sideToIdx(queuePanelChannel);
+    updateQueueViewControls(chIdx);
     if (channelMode[chIdx] === "spotify") {
       updateQueueHeaderButtons(chIdx);
-      fetchSpotifyQueue().then(function () {
-        renderSpotifyQueueList(chIdx);
-      });
+      if (queuePanelView === "library") {
+        renderSpotifyLibraryList(chIdx);
+        if (!spotifyLibraryLoading && spotifyLibraryItems.length === 0 && !spotifyLibraryError) {
+          fetchSpotifyLibrary({ reset: true }).then(function () {
+            renderSpotifyLibraryList(chIdx);
+            updateQueueViewControls(chIdx);
+          });
+        }
+      } else {
+        fetchSpotifyQueue().then(function () {
+          renderSpotifyQueueList(chIdx);
+        });
+      }
       return;
     }
     var q = getQueue(chIdx);
@@ -992,6 +1224,7 @@
     }
 
     updateQueueHeaderButtons(chIdx);
+    updateQueueViewControls(chIdx);
 
     if (queueEmptyEl) {
       queueEmptyEl.hidden = q.length > 0;
@@ -1138,6 +1371,7 @@
   function openQueuePanel(side) {
     if (!queueRoot || !queuePanel) return;
     queuePanelChannel = side;
+    queuePanelView = "queue";
     queuePanel.setAttribute("data-channel", side);
     queueRoot.hidden = false;
     queueRoot.setAttribute("aria-hidden", "false");
@@ -1159,6 +1393,7 @@
     queueRoot.setAttribute("aria-hidden", "true");
     document.body.classList.remove("beta-queue-open");
     queuePanelChannel = null;
+    queuePanelView = "queue";
     syncQueueDrawerSideClass();
   }
 
@@ -1381,14 +1616,17 @@
     channelMode[chIdx] = "spotify";
     spotifyChannelIdx = chIdx;
     refreshModeUi();
+    setStatus("Spotify connected. Initializing player...", false);
     return ensureSpotifyPlayer()
       .then(function () {
-        if (!spotifyDeviceId) throw new Error("spotify device unavailable");
-        return transferSpotifyPlayback(spotifyDeviceId, false);
+        return waitForSpotifyDevice(5000);
+      })
+      .then(function (deviceId) {
+        return transferSpotifyPlayback(deviceId, false);
       })
       .then(function () {
         pollSpotifyPlaybackState();
-        setStatus("Spotify connected on " + channelSideByIdx(chIdx) + " channel.");
+        setStatus("Spotify connected on " + channelSideByIdx(chIdx) + " channel.", false);
       })
       .catch(function (err) {
         disableSpotifyMode(chIdx);
@@ -1407,15 +1645,22 @@
     if (!code) return Promise.resolve();
     if (!state || !expectedState || state !== expectedState) {
       setStatus("Spotify login state mismatch. Try reconnecting.", true);
+      clearSpotifyOauthTransient();
       return Promise.resolve();
     }
     return exchangeSpotifyCodeForToken(code)
       .then(function (payload) {
         applyTokenPayload(payload);
+        clearSpotifyOauthTransient();
         params.delete("code");
         params.delete("state");
         var next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
         window.history.replaceState({}, document.title, next);
+        var pendingChannel = consumeSpotifyPendingChannel();
+        if (pendingChannel === 0 || pendingChannel === 1) {
+          return enableSpotifyMode(pendingChannel);
+        }
+        setStatus("Spotify connected. Tap Spotify to start playback.", false);
       })
       .catch(function () {
         setStatus("Spotify login failed. Try again.", true);
@@ -1733,7 +1978,7 @@
             return enableSpotifyMode(idx);
           })
           .catch(function () {
-            return spotifyAuthStart();
+            return spotifyAuthStart(idx);
           });
       });
     }
@@ -1815,6 +2060,34 @@
   if (queueCloseBtn) {
     queueCloseBtn.addEventListener("click", function () {
       closeQueuePanel();
+    });
+  }
+  if (queueViewQueueBtn) {
+    queueViewQueueBtn.addEventListener("click", function () {
+      setQueuePanelView("queue");
+    });
+  }
+  if (queueViewLibraryBtn) {
+    queueViewLibraryBtn.addEventListener("click", function () {
+      if (!queuePanelChannel) return;
+      var idx = sideToIdx(queuePanelChannel);
+      if (channelMode[idx] !== "spotify") return;
+      setQueuePanelView("library");
+      if (!spotifyLibraryLoading && spotifyLibraryItems.length === 0) {
+        fetchSpotifyLibrary({ reset: true }).then(function () {
+          refreshQueuePanelIfOpen();
+        });
+      }
+    });
+  }
+  if (queueLoadMoreBtn) {
+    queueLoadMoreBtn.addEventListener("click", function () {
+      if (!queuePanelChannel || queuePanelView !== "library") return;
+      var idx = sideToIdx(queuePanelChannel);
+      if (channelMode[idx] !== "spotify" || spotifyLibraryLoading || !spotifyLibraryHasMore) return;
+      fetchSpotifyLibrary({ reset: false }).then(function () {
+        refreshQueuePanelIfOpen();
+      });
     });
   }
   if (queueClearBtn) {
