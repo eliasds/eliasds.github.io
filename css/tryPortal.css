@@ -1643,3 +1643,299 @@ body.beta-page.beta-queue-open {
     padding-bottom: 0.75rem;
   }
 }
+
+body.beta-page.beta-spotify-open {
+  overflow: hidden;
+}
+
+.beta-spotify-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  isolation: isolate;
+  pointer-events: none;
+}
+
+.beta-spotify-root:not([hidden]) {
+  pointer-events: auto;
+}
+
+.beta-spotify-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.beta-spotify-panel {
+  position: absolute;
+  left: 50%;
+  width: min(420px, calc(100vw - 1.1rem));
+  transform: translate(-50%, 100%);
+  bottom: 0;
+  max-height: min(82dvh, 660px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #121212;
+  border-top: 1px solid var(--beta-border);
+  border-left: 1px solid var(--beta-border);
+  border-right: 1px solid var(--beta-border);
+  border-radius: var(--beta-radius) var(--beta-radius) 0 0;
+  box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.55);
+}
+
+.beta-spotify-root:not([hidden]) .beta-spotify-panel {
+  animation: beta-spotify-sheet-in 0.28s ease forwards;
+}
+
+@keyframes beta-spotify-sheet-in {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0.92;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.beta-spotify-handle {
+  width: 42px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--beta-border);
+  align-self: center;
+  margin-top: 0.5rem;
+  margin-bottom: 0.35rem;
+  flex-shrink: 0;
+}
+
+.beta-spotify-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.25rem 0.85rem 0.5rem;
+}
+
+.beta-spotify-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  color: #f5f5f5;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.26rem;
+}
+
+.beta-spotify-title-side {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.beta-spotify-title-side--left {
+  color: var(--beta-left);
+}
+
+.beta-spotify-title-side--right {
+  color: var(--beta-right);
+}
+
+.beta-spotify-title-sep {
+  color: #8b8b8b;
+  font-weight: 600;
+}
+
+.beta-spotify-title-brand {
+  color: #1db954;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.beta-spotify-icon-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--beta-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.beta-spotify-icon-btn:hover {
+  color: var(--beta-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.beta-spotify-actions {
+  padding: 0 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.beta-spotify-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  border: 1px solid var(--beta-border);
+  background: #191919;
+  color: #e5e5e5;
+  border-radius: 999px;
+  padding: 0.36rem 0.52rem;
+  font: inherit;
+  font-size: 0.71rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.beta-spotify-btn-text {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.02;
+}
+
+.beta-spotify-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.beta-spotify-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+
+.beta-spotify-hint {
+  margin: 0.65rem 0.9rem 0.25rem;
+  font-size: 0.74rem;
+  color: #a3a3a3;
+}
+
+.beta-spotify-empty {
+  margin: 0.2rem 0.9rem 0.45rem;
+  color: #a3a3a3;
+  font-size: 0.75rem;
+}
+
+.beta-spotify-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.25rem 0.7rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.beta-spotify-row {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.5rem 0.55rem;
+  background: #151515;
+  color: #c4c4c4;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.beta-spotify-row:hover {
+  background: #1d1d1d;
+  color: #fff;
+}
+
+.beta-spotify-panel[data-channel="left"] .beta-spotify-row--selected {
+  border-color: rgba(167, 139, 250, 0.35);
+  background: rgba(167, 139, 250, 0.1);
+  color: #fff;
+}
+
+.beta-spotify-panel[data-channel="right"] .beta-spotify-row--selected {
+  border-color: rgba(234, 88, 12, 0.35);
+  background: rgba(234, 88, 12, 0.1);
+  color: #fff;
+}
+
+.beta-spotify-row-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+.beta-spotify-row-meta {
+  font-size: 0.7rem;
+  color: #9a9a9a;
+}
+
+.beta-spotify-footer {
+  padding: 0.42rem 0.85rem calc(0.82rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.beta-spotify-play-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--beta-border);
+  border-radius: 999px;
+  background: #1db954;
+  color: #08120b;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 0.72rem;
+  cursor: pointer;
+}
+
+.beta-spotify-play-btn:hover:not(:disabled) {
+  filter: brightness(1.04);
+}
+
+.beta-spotify-play-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .beta-spotify-panel {
+    left: 0;
+    right: 0;
+    width: auto;
+    transform: translateY(100%);
+    border-left: none;
+    border-right: none;
+  }
+
+  .beta-spotify-root:not([hidden]) .beta-spotify-panel {
+    animation: beta-spotify-sheet-in-mobile 0.28s ease forwards;
+  }
+
+  @keyframes beta-spotify-sheet-in-mobile {
+    from {
+      transform: translateY(100%);
+      opacity: 0.94;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .beta-spotify-panel[data-channel="left"] .beta-spotify-row--selected,
+  .beta-spotify-panel[data-channel="right"] .beta-spotify-row--selected {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.35);
+  }
+}
