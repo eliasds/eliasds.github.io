@@ -102,7 +102,7 @@ body.beta-page .beta-page-footer.site-footer {
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: flex-end;
-  gap: 0.35rem;
+  gap: 1.15rem;
   max-width: min(20rem, 100%);
 }
 
@@ -119,6 +119,17 @@ body.beta-page .beta-page-footer.site-footer {
   grid-row: 1;
   justify-self: center;
   align-self: center;
+}
+
+/* Wide viewports: center tab groups in each outer track — closer than edge-pinned, not hugging dual-play. */
+@media (min-width: 1081px) {
+  .beta-page .beta-footer-side--left {
+    justify-self: center;
+  }
+
+  .beta-page .beta-footer-side--right {
+    justify-self: center;
+  }
 }
 
 body.beta-page .beta-tab {
@@ -1251,7 +1262,7 @@ body.beta-page .beta-tab-icon {
   }
 
   .beta-page .beta-footer-inner .beta-tab-bar {
-    gap: 0.15rem;
+    gap: 0.75rem;
   }
 
   .beta-page .beta-footer-inner .beta-tab {
