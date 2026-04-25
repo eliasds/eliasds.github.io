@@ -36,6 +36,14 @@
   var SKIP_BURST_INTERVAL_MS = 200;
   /** Hold this long before burst-seek starts (tap before this = change track). */
   var LONG_PRESS_START_MS = 400;
+  var SPOTIFY_REDIRECT_URI = "https://dicotic.com/try/";
+  var SPOTIFY_SCOPES = [
+    "streaming",
+    "user-read-email",
+    "user-read-private",
+    "user-read-playback-state",
+    "user-modify-playback-state",
+  ].join(" ");
 
   /** @typedef {'left'|'right'} ChannelSide */
   /** @typedef {'off'|'queue'|'one'} RepeatMode */
@@ -136,7 +144,11 @@
     ticker: null,
     tokenValue: "",
     tokenExpiresAt: 0,
-    promptUsed: false,
+  };
+  var spotifyAuth = {
+    accessToken: "",
+    refreshToken: "",
+    expiresAt: 0,
   };
 
   function sideToIdx(side) {
@@ -198,6 +210,214 @@
 
   function getSdkGlobal() {
     return window.Spotify || null;
+  }
+
+  function getSpotifyClientId() {
+    var id = "";
+    if (typeof window !== "undefined" && window.__SPOTIFY_CLIENT_ID__) {
+      id = String(window.__SPOTIFY_CLIENT_ID__);
+    }
+    if (!id && typeof window !== "undefined" && window.SPOTIFY_CLIENT_ID) {
+      id = String(window.SPOTIFY_CLIENT_ID);
+    }
+    return id.trim();
+  }
+
+  function base64UrlEncode(bytes) {
+    var str = "";
+    for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function randomVerifier(len) {
+    var arr = new Uint8Array(len);
+    crypto.getRandomValues(arr);
+    return base64UrlEncode(arr);
+  }
+
+  function sha256Base64Url(input) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(input)).then(function (hash) {
+      return base64UrlEncode(new Uint8Array(hash));
+    });
+  }
+
+  function spotifyStorageKey(name) {
+    return "dicotic_spotify_" + name;
+  }
+
+  function loadSpotifyAuthFromStorage() {
+    try {
+      var raw = sessionStorage.getItem(spotifyStorageKey("auth"));
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      spotifyAuth.accessToken = parsed.accessToken || "";
+      spotifyAuth.refreshToken = parsed.refreshToken || "";
+      spotifyAuth.expiresAt = parsed.expiresAt || 0;
+    } catch (e) {}
+  }
+
+  function saveSpotifyAuthToStorage() {
+    try {
+      sessionStorage.setItem(spotifyStorageKey("auth"), JSON.stringify(spotifyAuth));
+    } catch (e) {}
+  }
+
+  function syncSpotifyRuntimeToken() {
+    spotifyRuntime.tokenValue = spotifyAuth.accessToken || "";
+    spotifyRuntime.tokenExpiresAt = Number.isFinite(spotifyAuth.expiresAt) ? spotifyAuth.expiresAt : 0;
+  }
+
+  function clearSpotifyAuth() {
+    spotifyAuth.accessToken = "";
+    spotifyAuth.refreshToken = "";
+    spotifyAuth.expiresAt = 0;
+    syncSpotifyRuntimeToken();
+    try {
+      sessionStorage.removeItem(spotifyStorageKey("auth"));
+    } catch (e) {}
+  }
+
+  function getRuntimeRedirectUri() {
+    if (typeof window === "undefined") return SPOTIFY_REDIRECT_URI;
+    var p = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    if (p.indexOf("/try/") >= 0) return p;
+    return SPOTIFY_REDIRECT_URI;
+  }
+
+  function isAuthMissingError(err) {
+    if (!err || !err.message) return false;
+    return err.message === "no spotify auth";
+  }
+
+  function spotifyAuthStart(side) {
+    var clientId = getSpotifyClientId();
+    if (!clientId) {
+      setStatus("Spotify client ID is missing. Set window.__SPOTIFY_CLIENT_ID__.", true);
+      return Promise.reject(new Error("missing client id"));
+    }
+    var verifier = randomVerifier(64);
+    return sha256Base64Url(verifier).then(function (challenge) {
+      var redirectUri = getRuntimeRedirectUri();
+      var state = randomVerifier(24);
+      sessionStorage.setItem(spotifyStorageKey("pkce_verifier"), verifier);
+      sessionStorage.setItem(spotifyStorageKey("oauth_state"), state);
+      if (side === "left" || side === "right") {
+        sessionStorage.setItem(spotifyStorageKey("pending_side"), side);
+      }
+      var qs = new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        scope: SPOTIFY_SCOPES,
+        redirect_uri: redirectUri,
+        code_challenge_method: "S256",
+        code_challenge: challenge,
+        state: state,
+      });
+      window.location.assign("https://accounts.spotify.com/authorize?" + qs.toString());
+    });
+  }
+
+  function exchangeSpotifyCodeForToken(code) {
+    var verifier = sessionStorage.getItem(spotifyStorageKey("pkce_verifier")) || "";
+    var clientId = getSpotifyClientId();
+    if (!verifier || !clientId) return Promise.reject(new Error("missing verifier or client id"));
+    var redirectUri = getRuntimeRedirectUri();
+    var body = new URLSearchParams({
+      grant_type: "authorization_code",
+      code: code,
+      redirect_uri: redirectUri,
+      client_id: clientId,
+      code_verifier: verifier,
+    });
+    return fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    }).then(function (r) {
+      if (!r.ok) throw new Error("token exchange failed");
+      return r.json();
+    });
+  }
+
+  function refreshSpotifyToken() {
+    if (!spotifyAuth.refreshToken) return Promise.reject(new Error("missing refresh token"));
+    var clientId = getSpotifyClientId();
+    var body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: spotifyAuth.refreshToken,
+      client_id: clientId,
+    });
+    return fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    }).then(function (r) {
+      if (!r.ok) throw new Error("token refresh failed");
+      return r.json();
+    });
+  }
+
+  function applyTokenPayload(payload) {
+    spotifyAuth.accessToken = payload.access_token || "";
+    if (payload.refresh_token) spotifyAuth.refreshToken = payload.refresh_token;
+    var expiresIn = Number(payload.expires_in || 3600);
+    spotifyAuth.expiresAt = Date.now() + Math.max(60, expiresIn - 30) * 1000;
+    saveSpotifyAuthToStorage();
+    syncSpotifyRuntimeToken();
+  }
+
+  function ensureSpotifyToken() {
+    if (spotifyAuth.accessToken && Date.now() < spotifyAuth.expiresAt) {
+      syncSpotifyRuntimeToken();
+      return Promise.resolve(spotifyAuth.accessToken);
+    }
+    if (spotifyAuth.refreshToken) {
+      return refreshSpotifyToken()
+        .then(function (payload) {
+          applyTokenPayload(payload);
+          return spotifyAuth.accessToken;
+        })
+        .catch(function () {
+          clearSpotifyAuth();
+          throw new Error("no spotify auth");
+        });
+    }
+    return Promise.reject(new Error("no spotify auth"));
+  }
+
+  function initSpotifyAuthFromUrl() {
+    loadSpotifyAuthFromStorage();
+    syncSpotifyRuntimeToken();
+    var params = new URLSearchParams(window.location.search);
+    var code = params.get("code");
+    var state = params.get("state");
+    if (!code) return Promise.resolve();
+    var expectedState = sessionStorage.getItem(spotifyStorageKey("oauth_state")) || "";
+    if (!state || !expectedState || state !== expectedState) {
+      setStatus("Spotify login failed. Try again.", true);
+      return Promise.resolve();
+    }
+    return exchangeSpotifyCodeForToken(code)
+      .then(function (payload) {
+        applyTokenPayload(payload);
+        sessionStorage.removeItem(spotifyStorageKey("pkce_verifier"));
+        sessionStorage.removeItem(spotifyStorageKey("oauth_state"));
+        var side = sessionStorage.getItem(spotifyStorageKey("pending_side"));
+        sessionStorage.removeItem(spotifyStorageKey("pending_side"));
+        params.delete("code");
+        params.delete("state");
+        var next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
+        window.history.replaceState({}, document.title, next);
+        if (side === "left" || side === "right") {
+          return enableSpotifyOnSide(side).catch(function () {
+            setStatus("Spotify signed in. Tap Spotify again to enable playback.", false);
+          });
+        }
+      })
+      .catch(function () {
+        setStatus("Spotify login failed. Try again.", true);
+      });
   }
 
   function setSpotifyBtnState(side, isActive, isBusy) {
@@ -291,16 +511,11 @@
           throw new Error("Spotify token provider returned invalid payload");
         });
     }
-    if (!spotifyRuntime.promptUsed) {
-      spotifyRuntime.promptUsed = true;
-      var prompted = window.prompt("Paste Spotify access token for Web Playback SDK");
-      if (prompted) {
-        spotifyRuntime.tokenValue = prompted.trim();
-        spotifyRuntime.tokenExpiresAt = now + 50 * 60 * 1000;
-        return Promise.resolve(spotifyRuntime.tokenValue);
-      }
-    }
-    return Promise.reject(new Error("No Spotify access token provider configured"));
+    return ensureSpotifyToken().then(function (token) {
+      spotifyRuntime.tokenValue = token;
+      spotifyRuntime.tokenExpiresAt = spotifyAuth.expiresAt || now + 60 * 1000;
+      return token;
+    });
   }
 
   function loadSpotifySdk() {
@@ -402,6 +617,7 @@
         applySpotifyStateToActiveSide();
       });
       spotifyRuntime.player.addListener("authentication_error", function (e) {
+        clearSpotifyAuth();
         setStatus("Spotify auth error: " + (e && e.message ? e.message : "unknown"), true);
       });
       spotifyRuntime.player.addListener("account_error", function (e2) {
@@ -1499,7 +1715,21 @@
 
     if (u.spotify) {
       u.spotify.addEventListener("click", function () {
-        toggleSpotifyForSide(side);
+        var activeIdx = sideToIdx(side);
+        if (isPortalChannel(activeIdx)) {
+          disableSpotifyOnSide(side);
+          return;
+        }
+        ensureSpotifyToken()
+          .then(function () {
+            return enableSpotifyOnSide(side);
+          })
+          .catch(function (err) {
+            if (isAuthMissingError(err)) {
+              return spotifyAuthStart(side);
+            }
+            setStatus("Could not start Spotify: " + (err && err.message ? err.message : "unknown"), true);
+          });
       });
     }
 
@@ -1889,6 +2119,10 @@
     updatePlayLabels();
     updateSeekUi();
   }
+
+  initSpotifyAuthFromUrl()
+    .then(function () {})
+    .catch(function () {});
 
   requestAnimationFrame(loopSeek);
   renderTitles();
