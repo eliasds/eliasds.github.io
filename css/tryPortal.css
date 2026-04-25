@@ -304,6 +304,8 @@ body.beta-page .beta-tab-label {
 }
 
 .beta-page .beta-segment {
+  --channel-accent: var(--beta-left);
+  --channel-glow: rgba(167, 139, 250, 0.12);
   border-radius: var(--beta-radius);
   border: 1px solid var(--beta-border);
   background: var(--beta-surface);
@@ -318,14 +320,18 @@ body.beta-page .beta-tab-label {
   margin-right: auto;
 }
 
-.beta-page .beta-segment--left.beta-segment--drop-hover {
-  border-color: var(--beta-left);
-  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.35);
+.beta-page [data-channel="right"].beta-segment {
+  --channel-accent: var(--beta-right);
+  --channel-glow: rgba(234, 88, 12, 0.12);
 }
 
-.beta-page .beta-segment--right.beta-segment--drop-hover {
-  border-color: var(--beta-right);
-  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.35);
+.beta-page #beta-channel-cards {
+  display: contents;
+}
+
+.beta-page .beta-segment.beta-segment--drop-hover {
+  border-color: var(--channel-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--channel-accent) 35%, transparent);
 }
 
 /* Full-width stack: transport → title/artist → progress → Queue/Add (matches iOS column body) */
@@ -468,7 +474,7 @@ body.beta-page .beta-tab-label {
   background: rgba(167, 139, 250, 0.12);
 }
 
-.beta-page .beta-segment--right .beta-tool-btn[aria-pressed="true"] {
+.beta-page [data-channel="right"] .beta-tool-btn[aria-pressed="true"] {
   border-color: rgba(234, 88, 12, 0.55);
   background: rgba(234, 88, 12, 0.12);
 }
@@ -508,12 +514,8 @@ body.beta-page .beta-tab-label {
   touch-action: manipulation;
 }
 
-.beta-page .beta-segment--left .beta-vol-slider-vertical {
-  accent-color: var(--beta-left);
-}
-
-.beta-page .beta-segment--right .beta-vol-slider-vertical {
-  accent-color: var(--beta-right);
+.beta-page .beta-segment .beta-vol-slider-vertical {
+  accent-color: var(--channel-accent);
 }
 
 .beta-page .beta-vol-slider-vertical::-webkit-slider-runnable-track {
@@ -534,12 +536,8 @@ body.beta-page .beta-tab-label {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
-.beta-page .beta-segment--left .beta-vol-slider-vertical::-webkit-slider-thumb {
-  background: var(--beta-left);
-}
-
-.beta-page .beta-segment--right .beta-vol-slider-vertical::-webkit-slider-thumb {
-  background: var(--beta-right);
+.beta-page .beta-segment .beta-vol-slider-vertical::-webkit-slider-thumb {
+  background: var(--channel-accent);
 }
 
 .beta-page .beta-vol-slider-vertical::-moz-range-track {
@@ -557,20 +555,12 @@ body.beta-page .beta-tab-label {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
-.beta-page .beta-segment--left .beta-vol-slider-vertical::-moz-range-thumb {
-  background: var(--beta-left);
+.beta-page .beta-segment .beta-vol-slider-vertical::-moz-range-thumb {
+  background: var(--channel-accent);
 }
 
-.beta-page .beta-segment--right .beta-vol-slider-vertical::-moz-range-thumb {
-  background: var(--beta-right);
-}
-
-.beta-page .beta-segment--left {
-  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.12);
-}
-
-.beta-page .beta-segment--right {
-  box-shadow: inset 0 0 0 1px rgba(234, 88, 12, 0.12);
+.beta-page .beta-segment {
+  box-shadow: inset 0 0 0 1px var(--channel-glow);
 }
 
 .beta-page .beta-channel-label {
@@ -598,6 +588,7 @@ body.beta-page .beta-tab-label {
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -668,18 +659,24 @@ body.beta-page .beta-tab-label {
   border-radius: 0;
 }
 
-.beta-page .beta-segment--left .beta-play-main {
-  color: var(--beta-left);
-}
-
-.beta-page .beta-segment--right .beta-play-main {
-  color: var(--beta-right);
+.beta-page .beta-segment .beta-play-main {
+  color: var(--channel-accent);
 }
 
 .beta-page .beta-play-main .beta-play-glyph {
   display: block;
   width: 4.25rem;
   height: 4.25rem;
+}
+
+.beta-page .beta-seek-step-btn {
+  width: 38px;
+  height: 38px;
+}
+
+.beta-page .beta-seek-step-btn svg {
+  width: 24px;
+  height: 24px;
 }
 
 /* Progress — app-like thin bar + fill (progress set via --seek-progress on .beta-progress-wrap) */
@@ -691,7 +688,7 @@ body.beta-page .beta-tab-label {
   gap: 0.25rem;
 }
 
-.beta-page .beta-segment--right .beta-progress-wrap {
+.beta-page [data-channel="right"] .beta-progress-wrap {
   --beta-seek-fill: var(--beta-right);
 }
 
@@ -817,17 +814,6 @@ body.beta-page .beta-tab-label {
 
 .beta-page .beta-small-btn--spotify.beta-small-btn--active svg {
   color: #6ee7a2;
-}
-
-.beta-page .beta-unsupported {
-  opacity: 0.48;
-  cursor: not-allowed;
-  filter: grayscale(0.2);
-}
-
-.beta-page .beta-unsupported .beta-tool-btn,
-.beta-page .beta-unsupported input[type="range"] {
-  pointer-events: none;
 }
 
 /* Balance — matches PanSlider: track + center notch + thick handle via range styling */
@@ -1116,34 +1102,50 @@ body.beta-page .beta-tab-label {
   }
 
   .beta-page .beta-transport {
-    gap: 0.15rem;
+    flex-wrap: nowrap;
+    gap: 2px;
+    min-width: 0;
   }
 
   .beta-page .beta-transport .ionicon {
     display: block;
   }
 
-  .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main) {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+  /* Prev / next — keep a bit larger than ±15s for thumb targets in split columns */
+  .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main):not(.beta-seek-step-btn) {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
-  .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main) svg {
+  .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main):not(.beta-seek-step-btn) svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* ±15s — compact so five controls fit narrow mobile columns */
+  .beta-page .beta-transport .beta-icon-btn.beta-seek-step-btn {
     width: 26px;
     height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+  }
+
+  .beta-page .beta-transport .beta-icon-btn.beta-seek-step-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   .beta-page .beta-play-main {
-    min-width: 3.25rem;
-    min-height: 3.25rem;
+    min-width: 2.9rem;
+    min-height: 2.9rem;
     touch-action: manipulation;
   }
 
   .beta-page .beta-play-main .beta-play-glyph {
-    width: 3.25rem;
-    height: 3.25rem;
+    width: 2.9rem;
+    height: 2.9rem;
   }
 
   .beta-page .beta-progress-times {
@@ -1263,6 +1265,36 @@ body.beta-page .beta-tab-label {
 /* ——— Queue panel: bottom sheet (narrow) + side drawer (wide) ——— */
 body.beta-page.beta-queue-open {
   overflow: hidden;
+}
+
+.beta-queue-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  isolation: isolate;
+  pointer-events: none;
+}
+
+.beta-overlay-root:not([hidden]) {
+  pointer-events: auto;
+}
+
+.beta-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.52);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.beta-overlay-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--beta-surface);
 }
 
 .beta-queue-root {
@@ -1396,37 +1428,6 @@ body.beta-page.beta-queue-open {
   gap: 0.5rem;
   padding: 0 1rem 0.5rem;
   flex-shrink: 0;
-}
-
-.beta-queue-view-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  border: 1px solid var(--beta-border);
-  border-radius: 10px;
-  padding: 0.2rem;
-}
-
-.beta-queue-view-btn {
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--beta-text-secondary);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1;
-  padding: 0.38rem 0.6rem;
-  cursor: pointer;
-}
-
-.beta-queue-view-btn:hover {
-  color: var(--beta-text);
-}
-
-.beta-queue-view-btn--active {
-  color: var(--beta-text);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .beta-queue-clear-btn {

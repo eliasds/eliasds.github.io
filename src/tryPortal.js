@@ -128,6 +128,8 @@
       vol: document.getElementById("beta-vol-left"),
       pan: document.getElementById("beta-pan-left"),
       prev: document.getElementById("beta-prev-left"),
+      seekBack: document.getElementById("beta-seekback-left"),
+      seekForward: document.getElementById("beta-seekfwd-left"),
       next: document.getElementById("beta-next-left"),
       queue: document.getElementById("beta-queue-left"),
       spotify: document.getElementById("beta-spotify-left"),
@@ -147,6 +149,8 @@
       vol: document.getElementById("beta-vol-right"),
       pan: document.getElementById("beta-pan-right"),
       prev: document.getElementById("beta-prev-right"),
+      seekBack: document.getElementById("beta-seekback-right"),
+      seekForward: document.getElementById("beta-seekfwd-right"),
       next: document.getElementById("beta-next-right"),
       queue: document.getElementById("beta-queue-right"),
       spotify: document.getElementById("beta-spotify-right"),
@@ -186,8 +190,96 @@
     return idx === 0 ? "left" : "right";
   }
 
+  function isIOSDevice() {
+    if (typeof navigator === "undefined") return false;
+    var ua = navigator.userAgent || "";
+    var platform = navigator.platform || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    return platform === "MacIntel" && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1;
+  }
+
+  function isIOSSpotifyVolumeLocked(chIdx) {
+    return isIOSDevice() && isPortalChannel(chIdx);
+  }
+
   function isPortalChannel(chIdx) {
     return channelSourceKind[chIdx] === "portal";
+  }
+
+  function getChannelController(chIdx) {
+    var portalState = channelPortalState[chIdx];
+    var audio = audios[chIdx];
+    return {
+      isPortal: isPortalChannel(chIdx),
+      isPlaying: function () {
+        return isPortalChannel(chIdx) && portalState ? !!portalState.isPlaying : !audio.paused;
+      },
+      playPause: function (nextPlaying) {
+        if (isPortalChannel(chIdx) && portalState && portalState.onPlayPause) {
+          safeCall(portalState.onPlayPause, [!!nextPlaying]);
+          return Promise.resolve();
+        }
+        if (nextPlaying) {
+          var token = setPlayIntent(chIdx, true);
+          return ensureGraph()
+            .then(function () {
+              if (!channelShouldBePlaying[chIdx] || currentPlayIntentToken(chIdx) !== token) return;
+              return audio.play();
+            })
+            .catch(function () {});
+        }
+        setPlayIntent(chIdx, false);
+        audio.pause();
+        return Promise.resolve();
+      },
+      seek: function (seconds) {
+        if (isPortalChannel(chIdx) && portalState && portalState.onSeek) {
+          safeCall(portalState.onSeek, [seconds]);
+          return Promise.resolve();
+        }
+        return ensureGraph()
+          .then(function () {
+            if (Number.isFinite(seconds)) audio.currentTime = seconds;
+          })
+          .catch(function () {});
+      },
+      setVolume: function (nextVolume) {
+        var clamped = Number.isFinite(nextVolume) ? Math.max(0, Math.min(1, nextVolume)) : 1;
+        if (isPortalChannel(chIdx)) {
+          return setSpotifyVolumeFromChannel(chIdx, clamped);
+        }
+        return ensureGraph()
+          .then(function () {
+            var g = trackGains[chIdx];
+            if (g) g.gain.value = clamped;
+          })
+          .catch(function () {});
+      },
+      queuePrev: function () {
+        if (isPortalChannel(chIdx)) {
+          if (portalState && portalState.onPrev) safeCall(portalState.onPrev, []);
+          return;
+        }
+        skipToPreviousTrack(chIdx);
+      },
+      queueNext: function () {
+        if (isPortalChannel(chIdx)) {
+          if (portalState && portalState.onNext) safeCall(portalState.onNext, []);
+          return;
+        }
+        skipToNextTrack(chIdx);
+      },
+      setSpeed: function (rate) {
+        if (isPortalChannel(chIdx)) {
+          if (portalState && portalState.onSetSpeed) safeCall(portalState.onSetSpeed, [rate]);
+          return;
+        }
+        applyLocalRateToAudio(audio, rate);
+      },
+      swapToSide: function (side) {
+        if (isPortalChannel(chIdx) && portalState && portalState.onSwapToSide) safeCall(portalState.onSwapToSide, [side]);
+      },
+    };
   }
 
   function getDisplayMeta(chIdx) {
@@ -629,6 +721,40 @@
     });
   }
 
+  function setSpotifyDeviceVolume(clamped, opts) {
+    var volumePercent = Math.round(Math.max(0, Math.min(1, clamped)) * 100);
+    var query = "?volume_percent=" + volumePercent;
+    var did = opts && opts.deviceId ? String(opts.deviceId) : "";
+    if (did) query += "&device_id=" + encodeURIComponent(did);
+    return spotifyApiFetch("/me/player/volume" + query, { method: "PUT" });
+  }
+
+  function setSpotifyVolumeFromChannel(idx, nextVolume) {
+    var clamped = Number.isFinite(nextVolume) ? Math.max(0, Math.min(1, nextVolume)) : 1;
+    var side = idxToSide(idx);
+    var tasks = [];
+    if (spotifyRuntime.player && typeof spotifyRuntime.player.setVolume === "function") {
+      tasks.push(spotifyRuntime.player.setVolume(clamped));
+    }
+    // API fallback keeps device volume in sync when SDK volume alone is not enough.
+    tasks.push(
+      setSpotifyDeviceVolume(clamped, { deviceId: spotifyRuntime.deviceId }).catch(function () {
+        return setSpotifyDeviceVolume(clamped);
+      }),
+    );
+    return Promise.allSettled(tasks).then(function (results) {
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].status === "fulfilled") return;
+      }
+      var reason = "spotify volume update failed";
+      var first = results[0];
+      if (first && first.reason && first.reason.message) reason = first.reason.message;
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn("[Spotify volume]", side, clamped, reason);
+      }
+    });
+  }
+
   function setSpotifyModalLoading(isLoading) {
     spotifyRuntime.modalLoading = !!isLoading;
     if (spotifyTransferBtn) spotifyTransferBtn.disabled = spotifyRuntime.modalLoading;
@@ -636,9 +762,17 @@
     if (spotifyHintEl) {
       if (spotifyRuntime.modalLoading) spotifyHintEl.textContent = "Working…";
       else if (spotifyRuntime.modalError) spotifyHintEl.textContent = spotifyRuntime.modalError;
-      else
-        spotifyHintEl.textContent =
-          "Connect sends playback to this browser. Use channel controls for play, pause, seek, and queue.";
+      else {
+        var side = spotifyRuntime.modalSide;
+        var idx = side ? sideToIdx(side) : -1;
+        if (idx >= 0 && isIOSSpotifyVolumeLocked(idx)) {
+          spotifyHintEl.textContent =
+            "On iOS, Spotify volume is controlled by hardware buttons or the Spotify app. Channel volume slider is disabled.";
+        } else {
+          spotifyHintEl.textContent =
+            "Connect sends playback to this browser. Use channel controls for play, pause, seek, and queue.";
+        }
+      }
     }
   }
 
@@ -675,8 +809,14 @@
     document.body.classList.add("beta-spotify-open");
     setSpotifyModalLoading(false);
     if (spotifyHintEl) {
-      spotifyHintEl.textContent =
-        "Connect sends playback to this browser. Use channel controls for play, pause, seek, and queue.";
+      var idx = sideToIdx(side);
+      if (isIOSSpotifyVolumeLocked(idx)) {
+        spotifyHintEl.textContent =
+          "On iOS, Spotify volume is controlled by hardware buttons or the Spotify app. Channel volume slider is disabled.";
+      } else {
+        spotifyHintEl.textContent =
+          "Connect sends playback to this browser. Use channel controls for play, pause, seek, and queue.";
+      }
     }
   }
 
@@ -855,6 +995,11 @@
         return transferPlaybackToCurrentDevice(false);
       })
       .then(function () {
+        var u = targetIdx === 0 ? ui.left : ui.right;
+        var v = u && u.vol ? parseFloat(u.vol.value) : 1;
+        return setSpotifyVolumeFromChannel(targetIdx, Number.isFinite(v) ? v : 1);
+      })
+      .then(function () {
         openSpotifySheet(side);
       })
       .catch(function (err) {
@@ -890,6 +1035,26 @@
     statusEl.textContent = msg;
     statusEl.hidden = !msg;
     statusEl.classList.toggle("beta-status--error", !!isError);
+  }
+
+  function refreshVolumeInteractivity() {
+    ["left", "right"].forEach(function (side) {
+      var idx = sideToIdx(side);
+      var u = ui[side];
+      if (!u || !u.vol) return;
+      var locked = isIOSSpotifyVolumeLocked(idx);
+      u.vol.disabled = !!locked;
+      if (locked) {
+        u.vol.setAttribute(
+          "aria-label",
+          (side === "left" ? "Left" : "Right") + " volume controlled by iOS hardware buttons while Spotify is active",
+        );
+        u.vol.title = "On iOS, Spotify volume is controlled by hardware buttons.";
+      } else {
+        u.vol.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " volume");
+        u.vol.removeAttribute("title");
+      }
+    });
   }
 
   function clampPan(p) {
@@ -1111,9 +1276,7 @@
     audios[chIdx].removeAttribute("src");
     audios[chIdx].load();
     trackMeta[chIdx] = { title: "No track loaded", artist: "" };
-    renderTitles();
-    updatePlayLabels();
-    refreshQueuePanelIfOpen();
+    refreshChannelUi(chIdx, { includeQueue: true });
   }
 
   function toggleShuffleForChannel(chIdx) {
@@ -1128,10 +1291,7 @@
     var index = channelCurrentIndex[chIdx];
     if (channelShuffleEnabled[chIdx] && q.length > 1 && typeof Engine.randomShuffleAdvanceIndex === "function") {
       channelCurrentIndex[chIdx] = Engine.randomShuffleAdvanceIndex({ queueLen: q.length, currentIndex: index });
-      assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
+      assignAndRefresh(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) });
       return;
     }
     var r =
@@ -1143,26 +1303,17 @@
           })
         : null;
     if (!r) {
-      setPlayIntent(chIdx, false);
-      audios[chIdx].pause();
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
+      applyPausedTransport(chIdx);
       return;
     }
     if (r.pause) {
-      setPlayIntent(chIdx, false);
-      audios[chIdx].pause();
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
+      applyPausedTransport(chIdx);
       return;
     }
     channelCurrentIndex[chIdx] = r.index;
     var opts = { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) };
     if (typeof r.seekTo === "number" && Number.isFinite(r.seekTo) && r.seekTo >= 0) opts.seekTo = r.seekTo;
-    assignAudioFromCurrentIndex(chIdx, opts).then(function () {
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
-    });
+    assignAndRefresh(chIdx, opts);
   }
 
   function skipToNextTrack(chIdx) {
@@ -1172,10 +1323,7 @@
     var index = channelCurrentIndex[chIdx];
     if (channelShuffleEnabled[chIdx] && q.length > 1 && typeof Engine.randomShuffleAdvanceIndex === "function") {
       channelCurrentIndex[chIdx] = Engine.randomShuffleAdvanceIndex({ queueLen: q.length, currentIndex: index });
-      assignAudioFromCurrentIndex(chIdx, { doPlay: playing, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
+      assignAndRefresh(chIdx, { doPlay: playing, intentToken: currentPlayIntentToken(chIdx) });
       return;
     }
     var r =
@@ -1188,17 +1336,11 @@
         : null;
     if (!r || r.noop) return;
     if (r.pause) {
-      setPlayIntent(chIdx, false);
-      audios[chIdx].pause();
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
+      applyPausedTransport(chIdx);
       return;
     }
     channelCurrentIndex[chIdx] = r.index;
-    assignAudioFromCurrentIndex(chIdx, { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
-    });
+    assignAndRefresh(chIdx, { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) });
   }
 
   /** Previous: always previous item in list order (shuffle affects forward only). */
@@ -1219,10 +1361,7 @@
     channelCurrentIndex[chIdx] = r.index;
     var opts = { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) };
     if (typeof r.seekTo === "number" && Number.isFinite(r.seekTo) && r.seekTo >= 0) opts.seekTo = r.seekTo;
-    assignAudioFromCurrentIndex(chIdx, opts).then(function () {
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
-    });
+    assignAndRefresh(chIdx, opts);
   }
 
   function playFromIndex(chIdx, listIndex) {
@@ -1231,10 +1370,7 @@
     var clamped = Math.max(0, Math.min(listIndex, q.length - 1));
     channelCurrentIndex[chIdx] = clamped;
     var token = setPlayIntent(chIdx, true);
-    assignAudioFromCurrentIndex(chIdx, { doPlay: true, intentToken: token }).then(function () {
-      updatePlayLabels();
-      refreshQueuePanelIfOpen();
-    });
+    assignAndRefresh(chIdx, { doPlay: true, intentToken: token });
   }
 
   function removeQueueItemAt(chIdx, listIndex) {
@@ -1267,9 +1403,7 @@
     } else if (removedCurrent) {
       assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) });
     }
-    renderTitles();
-    updatePlayLabels();
-    refreshQueuePanelIfOpen();
+    refreshChannelUi(chIdx, { includeQueue: true });
   }
 
   function updateQueueHeaderButtons(chIdx) {
@@ -1554,7 +1688,7 @@
 
   function channelPlayIcon(isPlaying) {
     return isPlaying
-      ? '<path fill="currentColor" d="M196 120h72v272h-72V120zm152 0h72v272h-72V120z"/>'
+      ? '<rect x="146" y="120" width="84" height="272" rx="22" ry="22" fill="currentColor"/><rect x="282" y="120" width="84" height="272" rx="22" ry="22" fill="currentColor"/>'
       : '<path fill="currentColor" d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"/>';
   }
 
@@ -1625,7 +1759,58 @@
     }
   }
 
-  /** Thin V1: tap-only prev/next (no long-press burst seek). */
+  function refreshChannelUi(chIdx, opts) {
+    opts = opts || {};
+    renderTitles();
+    if (opts.includeSpeed) renderSpeedLabels();
+    updatePlayLabels();
+    if (opts.includeSeek) updateSeekUi();
+    if (opts.includeQueue) refreshQueuePanelIfOpen();
+  }
+
+  function refreshAllUi() {
+    renderTitles();
+    renderSpeedLabels();
+    refreshVolumeInteractivity();
+    updatePlayLabels();
+    updateSeekUi();
+    refreshQueuePanelIfOpen();
+  }
+
+  function applyPausedTransport(chIdx) {
+    setPlayIntent(chIdx, false);
+    audios[chIdx].pause();
+    refreshChannelUi(chIdx, { includeQueue: true });
+  }
+
+  function assignAndRefresh(chIdx, opts) {
+    return assignAudioFromCurrentIndex(chIdx, opts).then(function () {
+      refreshChannelUi(chIdx, { includeQueue: true });
+    });
+  }
+
+  function seekBySeconds(chIdx, deltaSeconds) {
+    var delta = Number.isFinite(deltaSeconds) ? deltaSeconds : 0;
+    if (!delta) return;
+    if (isPortalChannel(chIdx)) {
+      var ps = channelPortalState[chIdx];
+      if (!ps || !ps.onSeek) return;
+      var cur = Number.isFinite(ps.currentTime) ? ps.currentTime : 0;
+      var dur = Number.isFinite(ps.duration) && ps.duration > 0 ? ps.duration : Infinity;
+      var next = Math.max(0, Math.min(cur + delta, dur));
+      safeCall(ps.onSeek, [next]);
+      return;
+    }
+    ensureGraph()
+      .then(function () {
+        var a = audios[chIdx];
+        var cur = Number.isFinite(a.currentTime) ? a.currentTime : 0;
+        var dur = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : Infinity;
+        a.currentTime = Math.max(0, Math.min(cur + delta, dur));
+      })
+      .catch(function () {});
+  }
+
   function wirePrevNextTapOnly(chIdx, prevEl, nextEl) {
     function bind(btn, direction) {
       if (!btn) return;
@@ -1641,68 +1826,88 @@
     bind(nextEl, 1);
   }
 
-  function wireChannel(side) {
-    var u = ui[side];
-    var idx = side === "left" ? 0 : 1;
-
-    if (u.loadBtn && u.fileInput) {
-      u.loadBtn.addEventListener("click", function () {
-        u.fileInput.click();
-      });
-      u.fileInput.addEventListener("change", function () {
-        var files = u.fileInput.files;
-        if (!files || files.length === 0) return;
-        loadFilesIntoChannel(idx, Array.prototype.slice.call(files, 0));
-        u.fileInput.value = "";
+  function wireSeekStepButtons(chIdx, backEl, forwardEl) {
+    function bind(btn, delta) {
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        if (!prevNextTapGuard("seek-step-" + chIdx + "-" + delta)) return;
+        seekBySeconds(chIdx, delta);
       });
     }
+    bind(backEl, -15);
+    bind(forwardEl, 15);
+  }
 
-    var segmentEl = document.querySelector(side === "left" ? ".beta-segment--left" : ".beta-segment--right");
-    if (segmentEl) {
-      var dragDepth = 0;
-      function clearDropHover() {
-        dragDepth = 0;
-        segmentEl.classList.remove("beta-segment--drop-hover");
+  function bindFileLoad(side, idx, u) {
+    if (!u.loadBtn || !u.fileInput) return;
+    u.loadBtn.addEventListener("click", function () {
+      u.fileInput.click();
+    });
+    u.fileInput.addEventListener("change", function () {
+      var files = u.fileInput.files;
+      if (!files || files.length === 0) return;
+      loadFilesIntoChannel(idx, Array.prototype.slice.call(files, 0));
+      u.fileInput.value = "";
+    });
+  }
+
+  function bindDragAndDrop(side, idx) {
+    var segmentEl = document.querySelector('[data-channel="' + side + '"]');
+    if (!segmentEl) return;
+    var dragDepth = 0;
+    function clearDropHover() {
+      dragDepth = 0;
+      segmentEl.classList.remove("beta-segment--drop-hover");
+    }
+    segmentEl.addEventListener("dragenter", function (e) {
+      if (!dataTransferHasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      dragDepth++;
+      segmentEl.classList.add("beta-segment--drop-hover");
+    });
+    segmentEl.addEventListener("dragleave", function (e) {
+      if (!dataTransferHasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) segmentEl.classList.remove("beta-segment--drop-hover");
+    });
+    segmentEl.addEventListener("dragover", function (e) {
+      if (!dataTransferHasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      try {
+        e.dataTransfer.dropEffect = "copy";
+      } catch (err) {}
+    });
+    segmentEl.addEventListener("drop", function (e) {
+      if (!dataTransferHasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      clearDropHover();
+      var picked = filterAudioFiles(e.dataTransfer.files);
+      if (picked.length === 0) {
+        setStatus("Drop audio files only (for example MP3, M4A, or WAV).", true);
+        return;
       }
-      segmentEl.addEventListener("dragenter", function (e) {
-        if (!dataTransferHasFiles(e.dataTransfer)) return;
-        e.preventDefault();
-        dragDepth++;
-        segmentEl.classList.add("beta-segment--drop-hover");
-      });
-      segmentEl.addEventListener("dragleave", function (e) {
-        if (!dataTransferHasFiles(e.dataTransfer)) return;
-        e.preventDefault();
-        dragDepth = Math.max(0, dragDepth - 1);
-        if (dragDepth === 0) segmentEl.classList.remove("beta-segment--drop-hover");
-      });
-      segmentEl.addEventListener("dragover", function (e) {
-        if (!dataTransferHasFiles(e.dataTransfer)) return;
-        e.preventDefault();
-        try {
-          e.dataTransfer.dropEffect = "copy";
-        } catch (err) {}
-      });
-      segmentEl.addEventListener("drop", function (e) {
-        if (!dataTransferHasFiles(e.dataTransfer)) return;
-        e.preventDefault();
-        clearDropHover();
-        var picked = filterAudioFiles(e.dataTransfer.files);
-        if (picked.length === 0) {
-          setStatus("Drop audio files only (for example MP3, M4A, or WAV).", true);
-          return;
-        }
-        loadFilesIntoChannel(idx, picked);
-      });
-      segmentEl.addEventListener("dragend", clearDropHover);
-    }
+      loadFilesIntoChannel(idx, picked);
+    });
+    segmentEl.addEventListener("dragend", clearDropHover);
+  }
 
+  function bindTransportAndQueue(side, idx, u) {
     if (u.playBtn) {
       u.playBtn.addEventListener("click", function () {
         dispatchPortalIntent({ type: Engine.INTENT.PLAY_PAUSE, channel: idx });
       });
     }
+    wirePrevNextTapOnly(idx, u.prev, u.next);
+    wireSeekStepButtons(idx, u.seekBack, u.seekForward);
+    if (u.queue) {
+      u.queue.addEventListener("click", function () {
+        openQueuePanel(side);
+      });
+    }
+  }
 
+  function bindSeekVolumePan(idx, u) {
     if (u.seek) {
       u.seek.addEventListener("pointerdown", function () {
         u.seek.dataset.dragging = "1";
@@ -1711,40 +1916,16 @@
         delete u.seek.dataset.dragging;
       });
       u.seek.addEventListener("input", function () {
-        if (isPortalChannel(idx)) {
-          var pState = channelPortalState[idx];
-          if (!pState || !pState.onSeek) return;
-          var vPortal = parseFloat(u.seek.value);
-          if (Number.isFinite(vPortal)) safeCall(pState.onSeek, [vPortal]);
-          return;
-        }
-        ensureGraph()
-          .then(function () {
-            var a = audios[idx];
-            var v = parseFloat(u.seek.value);
-            if (Number.isFinite(v)) a.currentTime = v;
-          })
-          .catch(function () {});
+        var v = parseFloat(u.seek.value);
+        if (!Number.isFinite(v)) return;
+        getChannelController(idx).seek(v);
       });
     }
 
     if (u.vol) {
       u.vol.addEventListener("input", function () {
         var v = parseFloat(u.vol.value);
-        var clamped = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
-        if (isPortalChannel(idx)) {
-          if (spotifyRuntime.player) {
-            spotifyRuntime.player.setVolume(clamped).catch(function () {});
-          }
-          return;
-        }
-        ensureGraph()
-          .then(function () {
-            var g = trackGains[idx];
-            if (!g) return;
-            g.gain.value = clamped;
-          })
-          .catch(function () {});
+        getChannelController(idx).setVolume(v);
       });
     }
 
@@ -1760,59 +1941,60 @@
           .catch(function () {});
       });
     }
+  }
 
-    wirePrevNextTapOnly(idx, u.prev, u.next);
-
-    if (u.queue) {
-      u.queue.addEventListener("click", function () {
-        openQueuePanel(side);
-      });
-    }
-
-    if (u.spotify) {
-      u.spotify.addEventListener("click", function () {
-        var activeIdx = sideToIdx(side);
-        if (isPortalChannel(activeIdx)) {
-          ensureSpotifyToken()
-            .then(function () {
-              openSpotifySheet(side);
-            })
-            .catch(function (err) {
-              if (isAuthMissingError(err) || (err && err.message === "spotify_scope_or_auth")) {
-                return spotifyAuthStart(side);
-              }
-              setStatus("Could not open Spotify controls: " + (err && err.message ? err.message : "unknown"), true);
-            });
-          return;
-        }
+  function bindSpotify(side, idx, u) {
+    if (!u.spotify) return;
+    u.spotify.addEventListener("click", function () {
+      var controller = getChannelController(idx);
+      if (controller.isPortal) {
         ensureSpotifyToken()
-          .then(function () {
-            return enableSpotifyOnSide(side);
-          })
           .then(function () {
             openSpotifySheet(side);
           })
           .catch(function (err) {
-            if (isAuthMissingError(err)) {
-              return spotifyAuthStart(side);
-            }
-            setStatus("Could not start Spotify: " + (err && err.message ? err.message : "unknown"), true);
+            if (isAuthMissingError(err) || (err && err.message === "spotify_scope_or_auth")) return spotifyAuthStart(side);
+            setStatus("Could not open Spotify controls: " + (err && err.message ? err.message : "unknown"), true);
           });
-      });
-    }
+        return;
+      }
+      ensureSpotifyToken()
+        .then(function () {
+          return enableSpotifyOnSide(side);
+        })
+        .then(function () {
+          openSpotifySheet(side);
+        })
+        .catch(function (err) {
+          if (isAuthMissingError(err)) return spotifyAuthStart(side);
+          setStatus("Could not start Spotify: " + (err && err.message ? err.message : "unknown"), true);
+        });
+    });
+  }
 
-    if (u.speed && localSpeedStepEnabled) {
-      u.speed.addEventListener("click", function () {
-        if (!speedTapGuard("speed-" + idx)) return;
-        if (isPortalChannel(idx)) {
-          renderSpeedLabels();
-          return;
-        }
-        speedIdx[idx] = (speedIdx[idx] + 1) % speedPresets.length;
-        syncLocalPlaybackRate(idx);
+  function bindSpeedControl(idx, u) {
+    if (!u.speed || !localSpeedStepEnabled) return;
+    u.speed.addEventListener("click", function () {
+      if (!speedTapGuard("speed-" + idx)) return;
+      if (isPortalChannel(idx)) {
         renderSpeedLabels();
-      });
-    }
+        return;
+      }
+      speedIdx[idx] = (speedIdx[idx] + 1) % speedPresets.length;
+      getChannelController(idx).setSpeed(speedPresets[speedIdx[idx]] || 1);
+      renderSpeedLabels();
+    });
+  }
+
+  function wireChannel(side) {
+    var u = ui[side];
+    var idx = side === "left" ? 0 : 1;
+    bindFileLoad(side, idx, u);
+    bindDragAndDrop(side, idx);
+    bindTransportAndQueue(side, idx, u);
+    bindSeekVolumePan(idx, u);
+    bindSpotify(side, idx, u);
+    bindSpeedControl(idx, u);
   }
 
   wireChannel("left");
@@ -1875,66 +2057,29 @@
   }
   function applyChannelPlayPauseIntent(idx) {
     if (typeof idx !== "number" || idx < 0 || idx > 1) return;
-    if (isPortalChannel(idx)) {
-      if (!mainPlayTapGuard("portal-play-" + idx)) return;
-      var pState = channelPortalState[idx];
-      if (pState && pState.onPlayPause) {
-        safeCall(pState.onPlayPause, [!pState.isPlaying]);
-      }
-      return;
-    }
     if (!mainPlayTapGuard("play-" + idx)) return;
-    var a = audios[idx];
-    if (!a.paused) {
-      setPlayIntent(idx, false);
-      a.pause();
-      return;
-    }
-    var token = setPlayIntent(idx, true);
-    ensureGraph()
-      .then(function () {
-        if (!channelShouldBePlaying[idx] || currentPlayIntentToken(idx) !== token) return;
-        return a.play().catch(function () {
-          setStatus("Playback blocked until you interact with the page.", true);
-        });
-      })
-      .catch(function () {});
+    var controller = getChannelController(idx);
+    controller.playPause(!controller.isPlaying()).catch(function () {
+      setStatus("Playback blocked until you interact with the page.", true);
+    });
   }
 
   function applyDualPlayToggleIntent() {
-    var leftPortal = isPortalChannel(0) ? channelPortalState[0] : null;
-    var rightPortal = isPortalChannel(1) ? channelPortalState[1] : null;
-    var leftPlaying = leftPortal ? !!leftPortal.isPlaying : !audioLeft.paused;
-    var rightPlaying = rightPortal ? !!rightPortal.isPlaying : !audioRight.paused;
+    var leftController = getChannelController(0);
+    var rightController = getChannelController(1);
+    var leftPlaying = leftController.isPlaying();
+    var rightPlaying = rightController.isPlaying();
     var anyPlaying = leftPlaying || rightPlaying;
     if (anyPlaying) {
-      setPlayIntent(0, false);
-      setPlayIntent(1, false);
-      if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [false]);
-      else audioLeft.pause();
-      if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [false]);
-      else audioRight.pause();
+      leftController.playPause(false);
+      rightController.playPause(false);
       updatePlayLabels();
       return;
     }
     if (!mainPlayTapGuard("dual-play")) return;
-    ensureGraph()
-      .then(function () {
-        var tasks = [];
-        if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [true]);
-        else {
-          var tokenLeft = setPlayIntent(0, true);
-          if (channelShouldBePlaying[0] && currentPlayIntentToken(0) === tokenLeft) tasks.push(audioLeft.play());
-        }
-        if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [true]);
-        else {
-          var tokenRight = setPlayIntent(1, true);
-          if (channelShouldBePlaying[1] && currentPlayIntentToken(1) === tokenRight) tasks.push(audioRight.play());
-        }
-        if (tasks.length === 0) return;
-        return Promise.all(tasks).catch(function () {
-          setStatus("Playback blocked or no audio loaded.", true);
-        });
+    Promise.all([leftController.playPause(true), rightController.playPause(true)])
+      .catch(function () {
+        setStatus("Playback blocked or no audio loaded.", true);
       })
       .catch(function () {});
   }
@@ -1961,17 +2106,11 @@
         break;
       case Engine.INTENT.QUEUE_PREV:
         if (typeof intent.channel !== "number" || intent.channel < 0 || intent.channel > 1) break;
-        if (isPortalChannel(intent.channel)) {
-          var psP = channelPortalState[intent.channel];
-          safeCall(psP && psP.onPrev);
-        } else skipToPreviousTrack(intent.channel);
+        getChannelController(intent.channel).queuePrev();
         break;
       case Engine.INTENT.QUEUE_NEXT:
         if (typeof intent.channel !== "number" || intent.channel < 0 || intent.channel > 1) break;
-        if (isPortalChannel(intent.channel)) {
-          var psN = channelPortalState[intent.channel];
-          safeCall(psN && psN.onNext);
-        } else skipToNextTrack(intent.channel);
+        getChannelController(intent.channel).queueNext();
         break;
       default:
         break;
@@ -2139,20 +2278,15 @@
             } catch (e2) {}
           }
 
-          renderTitles();
           syncLocalPlaybackRate(0);
           syncLocalPlaybackRate(1);
-          renderSpeedLabels();
-          updatePlayLabels();
-          updateSeekUi();
+          refreshAllUi();
           applyChannelVolumeToGraph(0);
           applyChannelVolumeToGraph(1);
           applyPansToGraph();
 
-          var notifyLeftPortal = channelSourceKind[0] === "portal" ? channelPortalState[0] : null;
-          var notifyRightPortal = channelSourceKind[1] === "portal" ? channelPortalState[1] : null;
-          if (notifyLeftPortal && notifyLeftPortal.onSwapToSide) safeCall(notifyLeftPortal.onSwapToSide, [idxToSide(0)]);
-          if (notifyRightPortal && notifyRightPortal.onSwapToSide) safeCall(notifyRightPortal.onSwapToSide, [idxToSide(1)]);
+          getChannelController(0).swapToSide(idxToSide(0));
+          getChannelController(1).swapToSide(idxToSide(1));
 
           if (leftBinding && leftBinding.shouldResume && channelShouldBePlaying[0] && currentPlayIntentToken(0) === leftBinding.intentToken) {
             if (channelSourceKind[0] === "portal") {
@@ -2170,19 +2304,14 @@
               ar.play().catch(function () {});
             }
           }
-          refreshQueuePanelIfOpen();
         })
         .catch(function () {
-          renderTitles();
           syncLocalPlaybackRate(0);
           syncLocalPlaybackRate(1);
-          renderSpeedLabels();
-          updatePlayLabels();
-          updateSeekUi();
+          refreshAllUi();
           applyChannelVolumeToGraph(0);
           applyChannelVolumeToGraph(1);
           applyPansToGraph();
-          refreshQueuePanelIfOpen();
         });
     }
     return finish().finally(function () {
@@ -2240,11 +2369,7 @@
         assignAudioFromCurrentIndex(chIdx, { doPlay: false });
       }
     }
-    renderTitles();
-    renderSpeedLabels();
-    updatePlayLabels();
-    updateSeekUi();
-    refreshQueuePanelIfOpen();
+    refreshAllUi();
     refreshSpotifyButtons();
   }
 
@@ -2254,10 +2379,7 @@
     var current = clonePortalState(channelPortalState[chIdx]) || normalizePortalDescriptor({ sourceKind: "portal" });
     var next = Object.assign({}, current, patch || {});
     channelPortalState[chIdx] = normalizePortalDescriptor(Object.assign({}, next, { sourceKind: "portal" }));
-    renderTitles();
-    renderSpeedLabels();
-    updatePlayLabels();
-    updateSeekUi();
+    refreshChannelUi(chIdx, { includeSpeed: true, includeSeek: true });
   }
 
   initSpotifyAuthFromUrl()
@@ -2265,8 +2387,7 @@
     .catch(function () {});
 
   requestAnimationFrame(loopSeek);
-  renderTitles();
-  renderSpeedLabels();
-  updatePlayLabels();
+  refreshChannelUi(0, { includeSpeed: true });
+  refreshVolumeInteractivity();
   refreshSpotifyButtons();
 })();

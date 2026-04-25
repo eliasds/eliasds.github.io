@@ -5,9 +5,6 @@
 (function (global) {
   "use strict";
 
-  /** Thin V1: smaller surface; long-press burst seek is host-deferred. */
-  var THIN_V1 = true;
-
   /**
    * Local channel speed button cycles presets when true. When false, host pins 1× and
    * ignores SPEED_STEP (re-enable: set true, restore wireChannel + applySpeedStepIntent).
@@ -180,7 +177,6 @@
   }
 
   global.dicoticPortalEngine = {
-    THIN_V1: THIN_V1,
     LOCAL_SPEED_STEP_ENABLED: LOCAL_SPEED_STEP_ENABLED,
     INTENT: INTENT,
     SPOTIFY_CHANNEL: SPOTIFY_CHANNEL,
