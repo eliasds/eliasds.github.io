@@ -312,6 +312,27 @@
     statusEl.classList.toggle("beta-status--error", !!isError);
   }
 
+  /**
+   * @param {Element | null} controlEl
+   * @param {boolean} locked
+   * @param {string} tipText
+   */
+  function syncDisabledGuard(controlEl, locked, tipText) {
+    if (!controlEl) return;
+    var guard = controlEl.parentElement;
+    if (!guard || !guard.classList || !guard.classList.contains("beta-disabled-guard")) return;
+    guard.classList.toggle("beta-disabled-guard--locked", !!locked);
+    if (locked && tipText) {
+      guard.setAttribute("title", tipText);
+      guard.setAttribute("data-beta-tip", tipText);
+      controlEl.removeAttribute("title");
+    } else {
+      guard.removeAttribute("title");
+      guard.removeAttribute("data-beta-tip");
+      controlEl.removeAttribute("title");
+    }
+  }
+
   function refreshVolumeInteractivity() {
     ["left", "right"].forEach(function (side) {
       var idx = sideToIdx(side);
@@ -327,10 +348,14 @@
             "aria-label",
             (side === "left" ? "Left" : "Right") + " volume controlled by iOS hardware buttons while Spotify is active",
           );
-          u.vol.title = "On iOS, Spotify volume is controlled by hardware buttons.";
+          syncDisabledGuard(
+            u.vol,
+            true,
+            "On iOS, Spotify volume is controlled by hardware buttons.",
+          );
         } else {
           u.vol.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " volume");
-          u.vol.removeAttribute("title");
+          syncDisabledGuard(u.vol, false, "");
         }
       }
 
@@ -342,10 +367,14 @@
             "aria-label",
             (side === "left" ? "Left" : "Right") + " balance unavailable while Spotify portal is active",
           );
-          u.pan.title = "Balance is unavailable while Spotify portal is active.";
+          syncDisabledGuard(
+            u.pan,
+            true,
+            "Balance is unavailable while Spotify portal is active.",
+          );
         } else {
           u.pan.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " channel balance");
-          u.pan.removeAttribute("title");
+          syncDisabledGuard(u.pan, false, "");
         }
       }
     });
@@ -416,6 +445,17 @@
         } else {
           u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed " + formatSpeedLabel(rate));
         }
+        var speedTip = "";
+        if (speedDisabled) {
+          if (isPortal) {
+            speedTip = "Playback speed is controlled by Spotify while this portal is active.";
+          } else if (!localSpeedStepEnabled) {
+            speedTip = "Speed changes are disabled in this web beta.";
+          } else if (iosLocalSpeedLocked) {
+            speedTip = "Playback speed stays at 1× on iOS Safari and Chrome.";
+          }
+        }
+        syncDisabledGuard(u.speed, speedDisabled, speedTip);
       }
     });
   }
@@ -877,6 +917,12 @@
       if (!u.seek.dataset.dragging) u.seek.value = String(current);
       u.timeEl.textContent = formatTime(current);
       u.timeDur.textContent = formatTime(duration);
+      var seekLocked = isPortalChannel(idx) && portalState && portalState.canSeek === false;
+      syncDisabledGuard(
+        u.seek,
+        seekLocked,
+        seekLocked ? "Track scrubbing is not available for this Spotify playback." : "",
+      );
       var wrap = u.seek.closest(".beta-progress-wrap");
       if (wrap && wrap.style) {
         var pct = 0;
@@ -1285,6 +1331,16 @@
     var sRoot = spotifyHolder.api ? spotifyHolder.api.getRoot() : null;
     if (queueHolder.api && qRoot && !qRoot.hidden) queueHolder.api.close();
     if (spotifyHolder.api && sRoot && !sRoot.hidden) spotifyHolder.api.closeSheet();
+  });
+
+  document.body.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!(t instanceof Element)) return;
+    var guard = t.closest(".beta-disabled-guard--locked");
+    if (!guard) return;
+    var tip = guard.getAttribute("data-beta-tip") || guard.getAttribute("title") || "";
+    if (!tip) return;
+    setStatus(tip, false);
   });
 
   function applyChannelPlayPauseIntent(idx) {

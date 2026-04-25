@@ -160,6 +160,62 @@ body.beta-page .beta-tab:disabled {
   cursor: not-allowed;
 }
 
+/* Hit target + native title when a disabled control cannot receive pointer events */
+.beta-page .beta-disabled-guard {
+  pointer-events: none;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.beta-page .beta-disabled-guard--tab {
+  display: inline-flex;
+}
+
+.beta-page .beta-progress-wrap > .beta-disabled-guard {
+  display: block;
+  width: 100%;
+}
+
+.beta-page .beta-pan-wrap > .beta-disabled-guard {
+  display: block;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.beta-page .beta-vol-fader-slot > .beta-disabled-guard {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+}
+
+.beta-page .beta-vol-fader-slot > .beta-disabled-guard.beta-disabled-guard--locked {
+  z-index: 2;
+}
+
+.beta-page .beta-tools-col > .beta-disabled-guard {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.beta-page .beta-disabled-guard--locked {
+  pointer-events: auto;
+  cursor: not-allowed;
+}
+
+.beta-page .beta-disabled-guard--locked > .beta-tab {
+  cursor: not-allowed;
+}
+
+.beta-page .beta-disabled-guard--locked > button,
+.beta-page .beta-disabled-guard--locked > input[type="range"] {
+  pointer-events: none;
+}
+
 body.beta-page .beta-tab-icon {
   display: block;
   flex-shrink: 0;
