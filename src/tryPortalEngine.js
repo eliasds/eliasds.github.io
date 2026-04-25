@@ -9,7 +9,7 @@
    * Local channel speed button cycles presets when true. When false, host pins 1× and
    * ignores SPEED_STEP (re-enable: set true, restore wireChannel + applySpeedStepIntent).
    */
-  var LOCAL_SPEED_STEP_ENABLED = false;
+  var LOCAL_SPEED_STEP_ENABLED = true;
 
   var INTENT = {
     PLAY_PAUSE: "PLAY_PAUSE",

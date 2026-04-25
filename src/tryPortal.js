@@ -39,8 +39,11 @@
   var Engine = window.dicoticPortalEngine || {};
   /** When false, local playback stays at 1×; speed buttons stay visible but disabled. */
   var localSpeedStepEnabled = Engine.LOCAL_SPEED_STEP_ENABLED === true;
+  /** iOS WebKit: keep graph + pan; pin 1× — non‑1× + MediaElementSource is unstable on WebKit. */
+  var iosLocalSpeedLocked = isIOSWebKitRuntime();
+  var localSpeedStepEnabledEffective = localSpeedStepEnabled && !iosLocalSpeedLocked;
   var speedTapGuard =
-    localSpeedStepEnabled && typeof Engine.createTapGuard === "function"
+    localSpeedStepEnabledEffective && typeof Engine.createTapGuard === "function"
       ? Engine.createTapGuard(320)
       : function () {
           return true;
@@ -93,6 +96,9 @@
 
   var speedPresets = [0.75, 1, 1.25, 1.5];
   var speedIdx = [1, 1];
+  var RATE_EPSILON = 0.001;
+  var lastAppliedRateByChannel = [1, 1];
+  var lastAppliedPitchByChannel = [null, null];
 
   /** @type {AudioContext | null} */
   var ctx = null;
@@ -246,6 +252,10 @@
           if (portalState && portalState.onSetSpeed) safeCall(portalState.onSetSpeed, [rate]);
           return;
         }
+        if (iosLocalSpeedLocked) {
+          applyLocalRateToAudio(audio, 1);
+          return;
+        }
         applyLocalRateToAudio(audio, rate);
       },
       swapToSide: function (side) {
@@ -327,7 +337,7 @@
       if (u.pan) {
         var panLocked = isPortalChannel(idx);
         u.pan.disabled = panLocked;
-        if (panLocked) {
+        if (isPortalChannel(idx)) {
           u.pan.setAttribute(
             "aria-label",
             (side === "left" ? "Left" : "Right") + " balance unavailable while Spotify portal is active",
@@ -382,14 +392,14 @@
           Number.isFinite(portalState.playbackRate) && portalState.playbackRate > 0
             ? portalState.playbackRate
             : 1;
-      } else if (!localSpeedStepEnabled) {
+      } else if (!localSpeedStepEnabledEffective) {
         rate = 1;
       } else {
         rate = speedPresets[speedIdx[idx]] || 1;
       }
       if (u.speedLabel) u.speedLabel.textContent = formatSpeedLabel(rate);
       if (u.speed) {
-        var speedDisabled = isPortal || !localSpeedStepEnabled;
+        var speedDisabled = isPortal || !localSpeedStepEnabledEffective;
         u.speed.disabled = speedDisabled;
         if (isPortal) {
           u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed unavailable for Spotify");
@@ -397,6 +407,11 @@
           u.speed.setAttribute(
             "aria-label",
             (side === "left" ? "Left" : "Right") + " playback speed fixed at 1× (disabled in this beta)",
+          );
+        } else if (iosLocalSpeedLocked) {
+          u.speed.setAttribute(
+            "aria-label",
+            (side === "left" ? "Left" : "Right") + " playback speed fixed at 1× on iOS Safari and Chrome",
           );
         } else {
           u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed " + formatSpeedLabel(rate));
@@ -408,10 +423,11 @@
   function applyChannelVolumeToGraph(idx) {
     var u = idx === 0 ? ui.left : ui.right;
     if (!u || !u.vol) return;
+    var v = parseFloat(u.vol.value);
+    var clamped = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
     var g = trackGains[idx];
     if (!g) return;
-    var v = parseFloat(u.vol.value);
-    g.gain.value = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+    g.gain.value = clamped;
   }
 
   function setPlayIntent(chIdx, shouldPlay) {
@@ -424,21 +440,66 @@
     return channelPlayIntentToken[chIdx];
   }
 
+  function isIOSWebKitRuntime() {
+    if (typeof navigator === "undefined") return false;
+    var ua = navigator.userAgent || "";
+    var isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    return isIOS && /AppleWebKit/i.test(ua);
+  }
+
+  function rateChangedEnough(prevRate, nextRate) {
+    if (!Number.isFinite(prevRate)) return true;
+    if (!Number.isFinite(nextRate)) return false;
+    return Math.abs(prevRate - nextRate) > RATE_EPSILON;
+  }
+
+  function resolveAudioChannelIndex(audioEl) {
+    if (audioEl === audios[0]) return 0;
+    if (audioEl === audios[1]) return 1;
+    return -1;
+  }
+
+  function shouldDisablePitchPreserveForRate(rate) {
+    // Safari has audible artifacts with preservesPitch at >=1.5x on some versions.
+    var ua = (navigator && navigator.userAgent) || "";
+    var isSafari =
+      /safari/i.test(ua) &&
+      !/chrome|chromium|crios|android|fxios|edgios/i.test(ua);
+    return isSafari && rate >= 1.5;
+  }
+
+  function applyLocalRateNow(chIdx, audioEl, safeRate) {
+    var preservePitch = !shouldDisablePitchPreserveForRate(safeRate);
+    var lastRate = chIdx >= 0 ? lastAppliedRateByChannel[chIdx] : audioEl.playbackRate;
+    var lastPitch = chIdx >= 0 ? lastAppliedPitchByChannel[chIdx] : null;
+    try {
+      if (lastPitch !== preservePitch) {
+        if ("preservesPitch" in audioEl) audioEl.preservesPitch = preservePitch;
+        if ("webkitPreservesPitch" in audioEl) audioEl.webkitPreservesPitch = preservePitch;
+        if ("mozPreservesPitch" in audioEl) audioEl.mozPreservesPitch = preservePitch;
+      }
+      if (rateChangedEnough(lastRate, safeRate)) audioEl.playbackRate = safeRate;
+    } catch (e) {}
+    if (chIdx >= 0) {
+      lastAppliedRateByChannel[chIdx] = safeRate;
+      lastAppliedPitchByChannel[chIdx] = preservePitch;
+    }
+  }
+
   function applyLocalRateToAudio(audioEl, rate) {
     var safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
-    audioEl.playbackRate = safeRate;
-    // Safari can glitch with pitch correction at >=1.5x.
-    try {
-      if ("preservesPitch" in audioEl) audioEl.preservesPitch = false;
-      if ("webkitPreservesPitch" in audioEl) audioEl.webkitPreservesPitch = false;
-      if ("mozPreservesPitch" in audioEl) audioEl.mozPreservesPitch = false;
-    } catch (e) {}
+    var chIdx = resolveAudioChannelIndex(audioEl);
+    applyLocalRateNow(chIdx, audioEl, safeRate);
   }
 
   function syncLocalPlaybackRate(idx) {
     if (isPortalChannel(idx)) return;
-    var rate = localSpeedStepEnabled ? speedPresets[speedIdx[idx]] || 1 : 1;
+    var rate = iosLocalSpeedLocked ? 1 : localSpeedStepEnabled ? speedPresets[speedIdx[idx]] || 1 : 1;
     applyLocalRateToAudio(audios[idx], rate);
+  }
+
+  function pauseLocalChannel(chIdx) {
+    audios[chIdx].pause();
   }
 
   function renderTitles() {
@@ -555,7 +616,7 @@
     channelQueueFiles[chIdx] = [];
     channelCurrentIndex[chIdx] = 0;
     setPlayIntent(chIdx, false);
-    audios[chIdx].pause();
+    pauseLocalChannel(chIdx);
     revokeBlobForChannel(chIdx);
     audios[chIdx].removeAttribute("src");
     audios[chIdx].load();
@@ -756,7 +817,11 @@
       return Promise.reject(new Error("No AudioContext"));
     }
 
-    ctx = new AC();
+    try {
+      ctx = new AC({ sampleRate: 44100 });
+    } catch (e1) {
+      ctx = new AC();
+    }
     masterGain = ctx.createGain();
     masterGain.gain.value = 1;
     masterGain.connect(ctx.destination);
@@ -921,7 +986,7 @@
 
   function applyPausedTransport(chIdx) {
     setPlayIntent(chIdx, false);
-    audios[chIdx].pause();
+    pauseLocalChannel(chIdx);
     refreshChannelUi(chIdx, { includeQueue: true });
   }
 
@@ -1086,7 +1151,7 @@
   }
 
   function bindSpeedControl(idx, u) {
-    if (!u.speed || !localSpeedStepEnabled) return;
+    if (!u.speed || !localSpeedStepEnabledEffective) return;
     u.speed.addEventListener("click", function () {
       if (!speedTapGuard("speed-" + idx)) return;
       if (isPortalChannel(idx)) {
@@ -1314,7 +1379,7 @@
     channelPortalState[chIdx] = S.portalState;
     trackMeta[chIdx] = S.trackMeta;
     speedIdx[chIdx] = S.speedIdx;
-    if (!localSpeedStepEnabled) speedIdx[chIdx] = 1;
+    if (!localSpeedStepEnabledEffective) speedIdx[chIdx] = 1;
     var u = chIdx === 0 ? ui.left : ui.right;
     if (u && u.vol) u.vol.value = S.volValue;
     setPanInputValue(u && u.pan, S.panValue);
@@ -1379,7 +1444,7 @@
         return { shouldRebindFromQueue: true };
       }
       destAudio.src = movedSrc;
-      var bindRate = localSpeedStepEnabled ? speedPresets[speedIdx[destIdx]] || 1 : 1;
+      var bindRate = localSpeedStepEnabledEffective ? speedPresets[speedIdx[destIdx]] || 1 : 1;
       applyLocalRateToAudio(destAudio, Number.isFinite(bindRate) ? bindRate : 1);
       return {
         shouldResume: !movedPaused,
@@ -1467,13 +1532,13 @@
     if (normalized.sourceKind === "portal") {
       channelPortalState[chIdx] = normalizePortalState(normalized, "portal");
       channelShouldBePlaying[chIdx] = !!normalized.isPlaying;
-      audios[chIdx].pause();
+      pauseLocalChannel(chIdx);
       audios[chIdx].removeAttribute("src");
       audios[chIdx].load();
     } else {
       channelPortalState[chIdx] = null;
       channelShouldBePlaying[chIdx] = false;
-      if (localSpeedStepEnabled && Number.isFinite(normalized.playbackRate)) {
+      if (localSpeedStepEnabledEffective && Number.isFinite(normalized.playbackRate)) {
         applyLocalRateToAudio(audios[chIdx], normalized.playbackRate);
       } else {
         applyLocalRateToAudio(audios[chIdx], 1);
