@@ -784,9 +784,44 @@ body.beta-page .beta-tab-label {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.beta-page .beta-small-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+}
+
 .beta-page .beta-small-btn svg {
   color: var(--beta-text);
   opacity: 0.85;
+}
+
+.beta-page .beta-small-btn--spotify {
+  color: #1db954;
+}
+
+.beta-page .beta-small-btn--spotify svg {
+  color: #1db954;
+  opacity: 1;
+}
+
+.beta-page .beta-small-btn--spotify.beta-small-btn--active {
+  background: rgba(29, 185, 84, 0.14);
+  color: #6ee7a2;
+}
+
+.beta-page .beta-small-btn--spotify.beta-small-btn--active svg {
+  color: #6ee7a2;
+}
+
+.beta-page .beta-unsupported {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+}
+
+.beta-page .beta-unsupported .beta-tool-btn,
+.beta-page .beta-unsupported input[type="range"] {
+  pointer-events: none;
 }
 
 /* Balance — matches PanSlider: track + center notch + thick handle via range styling */
@@ -1368,9 +1403,42 @@ body.beta-page.beta-queue-open {
 
 .beta-queue-toolbar {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0 1rem 0.5rem;
   flex-shrink: 0;
+}
+
+.beta-queue-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--beta-border);
+  border-radius: 10px;
+  padding: 0.2rem;
+}
+
+.beta-queue-view-btn {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--beta-text-secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.38rem 0.6rem;
+  cursor: pointer;
+}
+
+.beta-queue-view-btn:hover {
+  color: var(--beta-text);
+}
+
+.beta-queue-view-btn--active {
+  color: var(--beta-text);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .beta-queue-clear-btn {
@@ -1496,6 +1564,25 @@ body.beta-page.beta-queue-open {
 .beta-queue-row-delete:hover {
   color: #fecaca;
   background: rgba(239, 68, 68, 0.12);
+}
+
+.beta-queue-row-action {
+  flex-shrink: 0;
+  border: 1px solid var(--beta-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--beta-text-secondary);
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+
+.beta-queue-row-action:hover {
+  color: var(--beta-text);
+  border-color: var(--beta-text-secondary);
 }
 
 .beta-queue-row-handle {

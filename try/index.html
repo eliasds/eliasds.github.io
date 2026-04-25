@@ -60,9 +60,7 @@
         </header>
 
         <p class="beta-banner" role="note">
-          <strong>Beta.</strong> Nothing is uploaded. Streaming services are not wired yet. Use headphones to hear stereo
-          balance clearly. If you hear no sound, run a tiny local server (e.g.
-          <code>python3 -m http.server</code> in the site root) and open <code>http://localhost:8000/try/</code>.
+          <strong>Beta.</strong> Use headphones to hear stereo balance clearly.
         </p>
 
         <div id="beta-status" class="beta-status" role="status" aria-live="polite" hidden></div>
@@ -127,6 +125,15 @@
                       <circle cx="80" cy="368" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
                     </svg>
                     Queue
+                  </button>
+                  <button type="button" class="beta-small-btn beta-small-btn--spotify" id="beta-spotify-left" aria-label="Enable Spotify on left channel">
+                    <svg class="ionicon" width="24" height="24" viewBox="0 0 168 168" aria-hidden="true">
+                      <circle cx="84" cy="84" r="84" fill="currentColor"></circle>
+                      <path d="M122.98 117.66a6.22 6.22 0 0 1-8.56 2.08c-23.43-14.32-52.93-17.57-87.68-9.65a6.22 6.22 0 1 1-2.76-12.14c38.01-8.66 70.69-4.97 96.93 11.07a6.22 6.22 0 0 1 2.07 8.64z" fill="#0a0a0b"></path>
+                      <path d="M135.21 90.89a7.78 7.78 0 0 1-10.7 2.6c-26.82-16.48-67.76-21.25-99.5-11.6a7.78 7.78 0 0 1-4.53-14.88c36.47-11.09 81.93-5.72 112.18 12.85a7.78 7.78 0 0 1 2.55 11.03z" fill="#0a0a0b"></path>
+                      <path d="M136.27 62.95C104.12 43.87 51.1 42.1 20.4 51.41a9.33 9.33 0 1 1-5.41-17.86C50.53 22.75 108.3 24.79 145.81 47.05a9.33 9.33 0 1 1-9.54 15.9z" fill="#0a0a0b"></path>
+                    </svg>
+                    Spotify
                   </button>
                   <input
                     id="beta-file-left"
@@ -256,6 +263,31 @@
                   </div>
                 </div>
                 <div class="beta-bottom-row">
+                  <button type="button" class="beta-small-btn" id="beta-queue-right" aria-label="Open right queue">
+                    <svg class="ionicon" width="24" height="24" viewBox="0 0 512 512" aria-hidden="true">
+                      <path
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="48"
+                        d="M160 144h288M160 256h288M160 368h288"
+                      />
+                      <circle cx="80" cy="144" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+                      <circle cx="80" cy="256" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+                      <circle cx="80" cy="368" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+                    </svg>
+                    Queue
+                  </button>
+                  <button type="button" class="beta-small-btn beta-small-btn--spotify" id="beta-spotify-right" aria-label="Enable Spotify on right channel">
+                    <svg class="ionicon" width="24" height="24" viewBox="0 0 168 168" aria-hidden="true">
+                      <circle cx="84" cy="84" r="84" fill="currentColor"></circle>
+                      <path d="M122.98 117.66a6.22 6.22 0 0 1-8.56 2.08c-23.43-14.32-52.93-17.57-87.68-9.65a6.22 6.22 0 1 1-2.76-12.14c38.01-8.66 70.69-4.97 96.93 11.07a6.22 6.22 0 0 1 2.07 8.64z" fill="#0a0a0b"></path>
+                      <path d="M135.21 90.89a7.78 7.78 0 0 1-10.7 2.6c-26.82-16.48-67.76-21.25-99.5-11.6a7.78 7.78 0 0 1-4.53-14.88c36.47-11.09 81.93-5.72 112.18 12.85a7.78 7.78 0 0 1 2.55 11.03z" fill="#0a0a0b"></path>
+                      <path d="M136.27 62.95C104.12 43.87 51.1 42.1 20.4 51.41a9.33 9.33 0 1 1-5.41-17.86C50.53 22.75 108.3 24.79 145.81 47.05a9.33 9.33 0 1 1-9.54 15.9z" fill="#0a0a0b"></path>
+                    </svg>
+                    Spotify
+                  </button>
                   <input
                     id="beta-file-right"
                     class="beta-hidden-file"
@@ -272,22 +304,6 @@
                       />
                     </svg>
                     Add
-                  </button>
-                  <button type="button" class="beta-small-btn" id="beta-queue-right" aria-label="Open right queue">
-                    <svg class="ionicon" width="24" height="24" viewBox="0 0 512 512" aria-hidden="true">
-                      <path
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="48"
-                        d="M160 144h288M160 256h288M160 368h288"
-                      />
-                      <circle cx="80" cy="144" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
-                      <circle cx="80" cy="256" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
-                      <circle cx="80" cy="368" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
-                    </svg>
-                    Queue
                   </button>
                 </div>
               </div>
@@ -575,6 +591,25 @@
           </div>
         </header>
         <div class="beta-queue-toolbar">
+          <div id="beta-queue-view-toggle" class="beta-queue-view-toggle" hidden>
+            <button
+              type="button"
+              id="beta-queue-view-queue"
+              class="beta-queue-view-btn beta-queue-view-btn--active"
+              aria-pressed="true"
+            >
+              Queue
+            </button>
+            <button
+              type="button"
+              id="beta-queue-view-library"
+              class="beta-queue-view-btn"
+              aria-pressed="false"
+            >
+              Library
+            </button>
+          </div>
+          <button type="button" id="beta-queue-load-more" class="beta-queue-clear-btn" hidden>Load more</button>
           <button type="button" id="beta-queue-clear" class="beta-queue-clear-btn">Clear queue</button>
         </div>
         <div id="beta-queue-empty" class="beta-queue-empty" hidden>
@@ -588,6 +623,9 @@
     <script>
       var ym = document.getElementById("year-meta");
       if (ym) ym.textContent = new Date().getFullYear().toString();
+    </script>
+    <script>
+      window.__SPOTIFY_CLIENT_ID__ = "3d3fea457c454994a673c1026257e066";
     </script>
     <script src="../src/tryPortal.js" defer></script>
   </body>
