@@ -31,7 +31,11 @@
 
   /** Sticky midpoint — PanSlider.tsx CENTER_SNAP_THRESHOLD */
   var CENTER_SNAP = 0.08;
-  var SEEK_STEP = 15;
+  /** Long-press on prev/next: seek this many seconds each tick. */
+  var SKIP_BURST_STEP_SEC = 5;
+  var SKIP_BURST_INTERVAL_MS = 200;
+  /** Hold this long before burst-seek starts (tap before this = change track). */
+  var LONG_PRESS_START_MS = 400;
 
   /** @typedef {'left'|'right'} ChannelSide */
   /** @typedef {'off'|'queue'|'one'} RepeatMode */
@@ -234,7 +238,7 @@
     return new Promise(function (resolve) {
       function afterMeta() {
         a.removeEventListener("loadedmetadata", afterMeta);
-        if (typeof seekTo === "number" && Number.isFinite(seekTo) && seekTo > 0) {
+        if (typeof seekTo === "number" && Number.isFinite(seekTo) && seekTo >= 0) {
           try {
             a.currentTime = seekTo;
           } catch (e) {}
@@ -365,6 +369,69 @@
     audios[chIdx].pause();
     updatePlayLabels();
     refreshQueuePanelIfOpen();
+  }
+
+  /**
+   * Manual next track: repeat-one does not block advancing (unlike onTrackEndedForChannel).
+   */
+  function skipToNextTrack(chIdx) {
+    var q = getQueue(chIdx);
+    if (q.length === 0) return;
+    var playing = !audios[chIdx].paused;
+    var index = channelCurrentIndex[chIdx];
+    var repeatMode = channelRepeatMode[chIdx];
+
+    if (index < q.length - 1) {
+      channelCurrentIndex[chIdx] = index + 1;
+      assignAudioFromCurrentIndex(chIdx, { doPlay: playing }).then(function () {
+        updatePlayLabels();
+        refreshQueuePanelIfOpen();
+      });
+      return;
+    }
+    if (repeatMode === "queue" && q.length > 0) {
+      channelCurrentIndex[chIdx] = 0;
+      assignAudioFromCurrentIndex(chIdx, { doPlay: playing }).then(function () {
+        updatePlayLabels();
+        refreshQueuePanelIfOpen();
+      });
+      return;
+    }
+    audios[chIdx].pause();
+    updatePlayLabels();
+    refreshQueuePanelIfOpen();
+  }
+
+  /**
+   * Manual previous track: repeat-one does not block (same as skipToNextTrack).
+   */
+  function skipToPreviousTrack(chIdx) {
+    var q = getQueue(chIdx);
+    if (q.length === 0) return;
+    var playing = !audios[chIdx].paused;
+    var index = channelCurrentIndex[chIdx];
+    var repeatMode = channelRepeatMode[chIdx];
+
+    if (index > 0) {
+      channelCurrentIndex[chIdx] = index - 1;
+      assignAudioFromCurrentIndex(chIdx, { doPlay: playing }).then(function () {
+        updatePlayLabels();
+        refreshQueuePanelIfOpen();
+      });
+      return;
+    }
+    if (repeatMode === "queue" && q.length > 0) {
+      channelCurrentIndex[chIdx] = q.length - 1;
+      assignAudioFromCurrentIndex(chIdx, { doPlay: playing }).then(function () {
+        updatePlayLabels();
+        refreshQueuePanelIfOpen();
+      });
+      return;
+    }
+    assignAudioFromCurrentIndex(chIdx, { doPlay: playing, seekTo: 0 }).then(function () {
+      updatePlayLabels();
+      refreshQueuePanelIfOpen();
+    });
   }
 
   function playFromIndex(chIdx, listIndex) {
@@ -813,6 +880,94 @@
     }
   }
 
+  function seekBurstRelative(chIdx, deltaSec) {
+    var a = audios[chIdx];
+    var nextT = a.currentTime + deltaSec;
+    if (deltaSec < 0) {
+      a.currentTime = Math.max(0, nextT);
+    } else {
+      var d = a.duration;
+      var maxT = Number.isFinite(d) && d > 0 ? d : nextT;
+      a.currentTime = Math.min(maxT, nextT);
+    }
+  }
+
+  function wirePrevNextTapOrBurst(chIdx, prevEl, nextEl) {
+    function bindSkipBtn(btn, direction) {
+      var longTimer = null;
+      var burstInt = null;
+      var didLongPress = false;
+      var capturedId = null;
+
+      function clearTimers() {
+        if (longTimer !== null) {
+          clearTimeout(longTimer);
+          longTimer = null;
+        }
+        if (burstInt !== null) {
+          clearInterval(burstInt);
+          burstInt = null;
+        }
+      }
+
+      function startBurst() {
+        longTimer = null;
+        didLongPress = true;
+        seekBurstRelative(chIdx, direction * SKIP_BURST_STEP_SEC);
+        burstInt = setInterval(function () {
+          seekBurstRelative(chIdx, direction * SKIP_BURST_STEP_SEC);
+        }, SKIP_BURST_INTERVAL_MS);
+      }
+
+      btn.addEventListener("pointerdown", function (e) {
+        if (!e.isPrimary) return;
+        e.preventDefault();
+        didLongPress = false;
+        clearTimers();
+        try {
+          btn.setPointerCapture(e.pointerId);
+          capturedId = e.pointerId;
+        } catch (err) {}
+        longTimer = setTimeout(startBurst, LONG_PRESS_START_MS);
+      });
+
+      btn.addEventListener("click", function (e) {
+        if (e.detail !== 0) return;
+        if (direction < 0) skipToPreviousTrack(chIdx);
+        else skipToNextTrack(chIdx);
+      });
+
+      btn.addEventListener("pointerup", function (e) {
+        if (!e.isPrimary) return;
+        if (capturedId !== null) {
+          try {
+            if (btn.hasPointerCapture(capturedId)) btn.releasePointerCapture(capturedId);
+          } catch (err2) {}
+          capturedId = null;
+        }
+        var wasLongPress = didLongPress;
+        clearTimers();
+        if (!wasLongPress) {
+          if (direction < 0) skipToPreviousTrack(chIdx);
+          else skipToNextTrack(chIdx);
+        }
+      });
+
+      btn.addEventListener("pointercancel", function () {
+        if (capturedId !== null) {
+          try {
+            if (btn.hasPointerCapture(capturedId)) btn.releasePointerCapture(capturedId);
+          } catch (err3) {}
+          capturedId = null;
+        }
+        clearTimers();
+      });
+    }
+
+    if (prevEl) bindSkipBtn(prevEl, -1);
+    if (nextEl) bindSkipBtn(nextEl, 1);
+  }
+
   function wireChannel(side) {
     var u = ui[side];
     var idx = side === "left" ? 0 : 1;
@@ -929,20 +1084,7 @@
       });
     }
 
-    if (u.prev) {
-      u.prev.addEventListener("click", function () {
-        var a = audios[idx];
-        a.currentTime = Math.max(0, a.currentTime - SEEK_STEP);
-      });
-    }
-    if (u.next) {
-      u.next.addEventListener("click", function () {
-        var a = audios[idx];
-        var d = a.duration;
-        var maxT = Number.isFinite(d) && d > 0 ? d : a.currentTime + SEEK_STEP;
-        a.currentTime = Math.min(maxT, a.currentTime + SEEK_STEP);
-      });
-    }
+    wirePrevNextTapOrBurst(idx, u.prev, u.next);
 
     if (u.queue) {
       u.queue.addEventListener("click", function () {
