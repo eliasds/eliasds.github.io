@@ -15,16 +15,9 @@
     PLAY_PAUSE: "PLAY_PAUSE",
     DUAL_TOGGLE: "DUAL_TOGGLE",
     SWAP_CHANNELS: "SWAP_CHANNELS",
-    /** Host cycles local presets; ignored when LOCAL_SPEED_STEP_ENABLED is false. */
-    SPEED_STEP: "SPEED_STEP",
-    SEEK: "SEEK",
     SHUFFLE_TOGGLE: "SHUFFLE_TOGGLE",
     QUEUE_NEXT: "QUEUE_NEXT",
     QUEUE_PREV: "QUEUE_PREV",
-    TRACK_ENDED: "TRACK_ENDED",
-    LOAD_FILES: "LOAD_FILES",
-    CLEAR_QUEUE: "CLEAR_QUEUE",
-    PLAY_FROM_INDEX: "PLAY_FROM_INDEX",
   };
 
   /**
@@ -85,15 +78,6 @@
   }
 
   /**
-   * @template T
-   * @param {T[]} arr
-   * @returns {T[]}
-   */
-  function shallowCloneArray(arr) {
-    return arr.slice();
-  }
-
-  /**
    * One channel worth of swappable fields (references, not deep-cloned File contents).
    * @typedef {{
    *   queueFiles: unknown[],
@@ -119,14 +103,7 @@
     return { left: b, right: a };
   }
 
-  /**
-   * Minimal effect plan: host runs effects in order after reducer step.
-   * @typedef {{ type: string, channel?: number, payload?: unknown }} PortalEffect
-   */
-
-  /**
-   * @param {number} minMs
-   */
+  /** @param {number} minMs */
   function createTapGuard(minMs) {
     var last = Object.create(null);
     return function (key) {
@@ -139,24 +116,6 @@
   }
 
   /**
-   * Exclusive async guard (e.g. swap): first caller wins until release().
-   * @returns {{ tryAcquire: () => boolean, release: () => void }}
-   */
-  function createTransitionLock() {
-    var locked = false;
-    return {
-      tryAcquire: function () {
-        if (locked) return false;
-        locked = true;
-        return true;
-      },
-      release: function () {
-        locked = false;
-      },
-    };
-  }
-
-  /**
    * Spotify channel capabilities (host still owns SDK).
    */
   var SPOTIFY_CHANNEL = {
@@ -164,17 +123,6 @@
     speedSupported: false,
     volumeViaSdk: true,
   };
-
-  /**
-   * @param {{ revision: number }} state
-   * @param {{ type: string, channel?: number, payload?: unknown }} intent
-   * @returns {{ state: { revision: number }, effects: PortalEffect[] }}
-   */
-  function reduceMeta(state, intent) {
-    var next = { revision: state.revision + 1 };
-    var effects = /** @type {PortalEffect[]} */ ([{ type: "HOST_APPLY_INTENT", payload: intent }]);
-    return { state: next, effects };
-  }
 
   global.dicoticPortalEngine = {
     LOCAL_SPEED_STEP_ENABLED: LOCAL_SPEED_STEP_ENABLED,
@@ -184,10 +132,7 @@
     transportManualNext: transportManualNext,
     transportManualPrev: transportManualPrev,
     randomShuffleAdvanceIndex: randomShuffleAdvanceIndex,
-    shallowCloneArray: shallowCloneArray,
     swapChannelSlices: swapChannelSlices,
     createTapGuard: createTapGuard,
-    createTransitionLock: createTransitionLock,
-    reduceMeta: reduceMeta,
   };
 })(typeof window !== "undefined" ? window : globalThis);

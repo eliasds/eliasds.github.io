@@ -296,22 +296,23 @@
     };
   }
 
-  function clonePortalState(ps) {
-    if (!ps) return null;
+  function normalizePortalState(descriptor, forceSourceKind) {
+    var d = descriptor || {};
     return {
-      title: ps.title || "",
-      artist: ps.artist || "",
-      isPlaying: !!ps.isPlaying,
-      currentTime: Number.isFinite(ps.currentTime) ? ps.currentTime : 0,
-      duration: Number.isFinite(ps.duration) ? ps.duration : 0,
-      playbackRate: Number.isFinite(ps.playbackRate) && ps.playbackRate > 0 ? ps.playbackRate : 1,
-      canSeek: ps.canSeek !== false,
-      onPlayPause: typeof ps.onPlayPause === "function" ? ps.onPlayPause : null,
-      onSeek: typeof ps.onSeek === "function" ? ps.onSeek : null,
-      onNext: typeof ps.onNext === "function" ? ps.onNext : null,
-      onPrev: typeof ps.onPrev === "function" ? ps.onPrev : null,
-      onSetSpeed: typeof ps.onSetSpeed === "function" ? ps.onSetSpeed : null,
-      onSwapToSide: typeof ps.onSwapToSide === "function" ? ps.onSwapToSide : null,
+      sourceKind: forceSourceKind || (d.sourceKind === "portal" ? "portal" : "local"),
+      title: typeof d.title === "string" ? d.title : "",
+      artist: typeof d.artist === "string" ? d.artist : "",
+      isPlaying: !!d.isPlaying,
+      currentTime: Number.isFinite(d.currentTime) ? d.currentTime : 0,
+      duration: Number.isFinite(d.duration) ? d.duration : 0,
+      playbackRate: Number.isFinite(d.playbackRate) && d.playbackRate > 0 ? d.playbackRate : 1,
+      canSeek: d.canSeek !== false,
+      onPlayPause: typeof d.onPlayPause === "function" ? d.onPlayPause : null,
+      onSeek: typeof d.onSeek === "function" ? d.onSeek : null,
+      onNext: typeof d.onNext === "function" ? d.onNext : null,
+      onPrev: typeof d.onPrev === "function" ? d.onPrev : null,
+      onSetSpeed: typeof d.onSetSpeed === "function" ? d.onSetSpeed : null,
+      onSwapToSide: typeof d.onSwapToSide === "function" ? d.onSwapToSide : null,
     };
   }
 
@@ -1021,15 +1022,6 @@
     setStatus("Spotify disabled on " + side + " channel.", false);
   }
 
-  function toggleSpotifyForSide(side) {
-    var idx = sideToIdx(side);
-    if (isPortalChannel(idx)) {
-      disableSpotifyOnSide(side);
-      return;
-    }
-    enableSpotifyOnSide(side);
-  }
-
   function setStatus(msg, isError) {
     if (!statusEl) return;
     statusEl.textContent = msg;
@@ -1041,18 +1033,37 @@
     ["left", "right"].forEach(function (side) {
       var idx = sideToIdx(side);
       var u = ui[side];
-      if (!u || !u.vol) return;
-      var locked = isIOSSpotifyVolumeLocked(idx);
-      u.vol.disabled = !!locked;
-      if (locked) {
-        u.vol.setAttribute(
-          "aria-label",
-          (side === "left" ? "Left" : "Right") + " volume controlled by iOS hardware buttons while Spotify is active",
-        );
-        u.vol.title = "On iOS, Spotify volume is controlled by hardware buttons.";
-      } else {
-        u.vol.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " volume");
-        u.vol.removeAttribute("title");
+      if (!u) return;
+      var volumeLocked = isIOSSpotifyVolumeLocked(idx);
+      if (u.vol) {
+        u.vol.disabled = !!volumeLocked;
+      }
+      if (u.vol) {
+        if (volumeLocked) {
+          u.vol.setAttribute(
+            "aria-label",
+            (side === "left" ? "Left" : "Right") + " volume controlled by iOS hardware buttons while Spotify is active",
+          );
+          u.vol.title = "On iOS, Spotify volume is controlled by hardware buttons.";
+        } else {
+          u.vol.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " volume");
+          u.vol.removeAttribute("title");
+        }
+      }
+
+      if (u.pan) {
+        var panLocked = isPortalChannel(idx);
+        u.pan.disabled = panLocked;
+        if (panLocked) {
+          u.pan.setAttribute(
+            "aria-label",
+            (side === "left" ? "Left" : "Right") + " balance unavailable while Spotify portal is active",
+          );
+          u.pan.title = "Balance is unavailable while Spotify portal is active.";
+        } else {
+          u.pan.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " channel balance");
+          u.pan.removeAttribute("title");
+        }
       }
     });
   }
@@ -1688,7 +1699,7 @@
 
   function channelPlayIcon(isPlaying) {
     return isPlaying
-      ? '<rect x="146" y="120" width="84" height="272" rx="22" ry="22" fill="currentColor"/><rect x="282" y="120" width="84" height="272" rx="22" ry="22" fill="currentColor"/>'
+      ? '<rect x="112" y="92" width="116" height="328" rx="26" ry="26" fill="currentColor"/><rect x="284" y="92" width="116" height="328" rx="26" ry="26" fill="currentColor"/>'
       : '<path fill="currentColor" d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"/>';
   }
 
@@ -2162,7 +2173,7 @@
       shuffleEnabled: channelShuffleEnabled[chIdx],
       lastBlobUrl: channelLastBlobUrl[chIdx],
       sourceKind: channelSourceKind[chIdx],
-      portalState: clonePortalState(channelPortalState[chIdx]),
+      portalState: normalizePortalState(channelPortalState[chIdx], "portal"),
       trackMeta: { title: trackMeta[chIdx].title, artist: trackMeta[chIdx].artist || "" },
       speedIdx: speedIdx[chIdx],
       volValue: u && u.vol ? u.vol.value : "1",
@@ -2325,34 +2336,14 @@
     });
   }
 
-  function normalizePortalDescriptor(descriptor) {
-    var d = descriptor || {};
-    return {
-      sourceKind: d.sourceKind === "portal" ? "portal" : "local",
-      title: typeof d.title === "string" ? d.title : "",
-      artist: typeof d.artist === "string" ? d.artist : "",
-      isPlaying: !!d.isPlaying,
-      currentTime: Number.isFinite(d.currentTime) ? d.currentTime : 0,
-      duration: Number.isFinite(d.duration) ? d.duration : 0,
-      playbackRate: Number.isFinite(d.playbackRate) && d.playbackRate > 0 ? d.playbackRate : 1,
-      canSeek: d.canSeek !== false,
-      onPlayPause: typeof d.onPlayPause === "function" ? d.onPlayPause : null,
-      onSeek: typeof d.onSeek === "function" ? d.onSeek : null,
-      onNext: typeof d.onNext === "function" ? d.onNext : null,
-      onPrev: typeof d.onPrev === "function" ? d.onPrev : null,
-      onSetSpeed: typeof d.onSetSpeed === "function" ? d.onSetSpeed : null,
-      onSwapToSide: typeof d.onSwapToSide === "function" ? d.onSwapToSide : null,
-    };
-  }
-
   function setSideSource(side, descriptor) {
     var chIdx = sideToIdx(side);
-    var normalized = normalizePortalDescriptor(descriptor);
+    var normalized = normalizePortalState(descriptor);
     channelSourceKind[chIdx] = normalized.sourceKind;
     channelLoadRequestId[chIdx] += 1;
     channelPlayIntentToken[chIdx] += 1;
     if (normalized.sourceKind === "portal") {
-      channelPortalState[chIdx] = clonePortalState(normalized);
+      channelPortalState[chIdx] = normalizePortalState(normalized, "portal");
       channelShouldBePlaying[chIdx] = !!normalized.isPlaying;
       audios[chIdx].pause();
       audios[chIdx].removeAttribute("src");
@@ -2376,9 +2367,9 @@
   function updatePortalSideState(side, patch) {
     var chIdx = sideToIdx(side);
     if (channelSourceKind[chIdx] !== "portal") return;
-    var current = clonePortalState(channelPortalState[chIdx]) || normalizePortalDescriptor({ sourceKind: "portal" });
+    var current = normalizePortalState(channelPortalState[chIdx], "portal") || normalizePortalState({ sourceKind: "portal" });
     var next = Object.assign({}, current, patch || {});
-    channelPortalState[chIdx] = normalizePortalDescriptor(Object.assign({}, next, { sourceKind: "portal" }));
+    channelPortalState[chIdx] = normalizePortalState(Object.assign({}, next, { sourceKind: "portal" }), "portal");
     refreshChannelUi(chIdx, { includeSpeed: true, includeSeek: true });
   }
 
