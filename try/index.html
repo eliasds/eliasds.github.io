@@ -591,6 +591,25 @@
           </div>
         </header>
         <div class="beta-queue-toolbar">
+          <div id="beta-queue-view-toggle" class="beta-queue-view-toggle" hidden>
+            <button
+              type="button"
+              id="beta-queue-view-queue"
+              class="beta-queue-view-btn beta-queue-view-btn--active"
+              aria-pressed="true"
+            >
+              Queue
+            </button>
+            <button
+              type="button"
+              id="beta-queue-view-library"
+              class="beta-queue-view-btn"
+              aria-pressed="false"
+            >
+              Library
+            </button>
+          </div>
+          <button type="button" id="beta-queue-load-more" class="beta-queue-clear-btn" hidden>Load more</button>
           <button type="button" id="beta-queue-clear" class="beta-queue-clear-btn">Clear queue</button>
         </div>
         <div id="beta-queue-empty" class="beta-queue-empty" hidden>
