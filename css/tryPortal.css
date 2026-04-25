@@ -473,6 +473,12 @@ body.beta-page .beta-tab-label {
   background: rgba(234, 88, 12, 0.12);
 }
 
+.beta-page .beta-tool-btn--disabled,
+.beta-page .beta-tool-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .beta-page .beta-speed-btn {
   min-height: 3.5rem;
 }
@@ -1383,24 +1389,6 @@ body.beta-page.beta-queue-open {
   color: var(--beta-right);
 }
 
-/* Ionicons repeat.svg matches repeat-outline; heavier stroke when repeat is on. */
-.beta-queue-repeat-wrap.beta-queue-icon--active .beta-queue-repeat-icon path {
-  stroke-width: 38;
-}
-
-.beta-queue-repeat-wrap .beta-queue-repeat-badge {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 1px 3px;
-  border-radius: 4px;
-  background: var(--beta-text);
-  color: var(--beta-bg);
-}
-
 .beta-queue-toolbar {
   display: flex;
   align-items: center;
@@ -1588,15 +1576,26 @@ body.beta-page.beta-queue-open {
 .beta-queue-row-handle {
   flex-shrink: 0;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 22px;
+  margin-right: 0.1rem;
   color: var(--beta-text-secondary);
   cursor: grab;
-  padding: 0.15rem;
+  padding: 0.1rem;
   user-select: none;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    to bottom,
+    currentColor 0 2px,
+    transparent 2px 5px
+  );
+  opacity: 0.55;
 }
 
-.beta-queue-row[draggable="false"] .beta-queue-row-handle {
-  opacity: 0.35;
-  cursor: default;
+.beta-queue-row-handle:active {
+  cursor: grabbing;
 }
 
 @media (min-width: 900px) {
@@ -1774,7 +1773,7 @@ body.beta-page.beta-spotify-open {
 .beta-spotify-actions {
   padding: 0 0.85rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem;
 }
 
@@ -1939,3 +1938,4 @@ body.beta-page.beta-spotify-open {
     box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.35);
   }
 }
+

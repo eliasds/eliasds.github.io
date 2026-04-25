@@ -1,7 +1,7 @@
 /**
  * Web beta — mirrors dicotic iOS: per-channel Balance (pan -1..1), separate volumes,
  * swap queues (exchange tracks; pans stay with Left/Right columns), dual play,
- * queue sheet / drawer, shuffle, repeat, drag reorder, per-row delete.
+ * queue sheet / drawer, shuffle (random advance), per-row delete, queue drag-reorder.
  * @see dicotic: services/audioQueue.ts, components/QueueSheet.tsx
  */
 
@@ -22,7 +22,6 @@
   const queueHeading = document.getElementById("beta-queue-heading");
   const queueListEl = document.getElementById("beta-queue-list");
   const queueShuffleBtn = document.getElementById("beta-queue-shuffle");
-  const queueRepeatBtn = document.getElementById("beta-queue-repeat");
   const queueCloseBtn = document.getElementById("beta-queue-close");
   const queueClearBtn = document.getElementById("beta-queue-clear");
   const queueEmptyEl = document.getElementById("beta-queue-empty");
@@ -32,23 +31,37 @@
   const spotifyTitle = document.getElementById("beta-spotify-title");
   const spotifyCloseBtn = document.getElementById("beta-spotify-close");
   const spotifyTransferBtn = document.getElementById("beta-spotify-transfer");
-  const spotifyRefreshBtn = document.getElementById("beta-spotify-refresh");
-  const spotifyPlayBtn = document.getElementById("beta-spotify-play");
   const spotifyDisableBtn = document.getElementById("beta-spotify-disable");
-  const spotifyListEl = document.getElementById("beta-spotify-list");
-  const spotifyEmptyEl = document.getElementById("beta-spotify-empty");
   const spotifyHintEl = document.getElementById("beta-spotify-hint");
-  const spotifyPlayLabel = document.getElementById("beta-spotify-play-label");
 
   if (!audioLeft || !audioRight) return;
 
+  var Engine = window.dicoticPortalEngine || {};
+  /** When false, local playback stays at 1×; speed buttons stay visible but disabled. */
+  var localSpeedStepEnabled = Engine.LOCAL_SPEED_STEP_ENABLED === true;
+  var speedTapGuard =
+    localSpeedStepEnabled && typeof Engine.createTapGuard === "function"
+      ? Engine.createTapGuard(320)
+      : function () {
+          return true;
+        };
+  var mainPlayTapGuard =
+    typeof Engine.createTapGuard === "function"
+      ? Engine.createTapGuard(280)
+      : function () {
+          return true;
+        };
+  var prevNextTapGuard =
+    typeof Engine.createTapGuard === "function"
+      ? Engine.createTapGuard(260)
+      : function () {
+          return true;
+        };
+  /** Re-entrancy guard while swapQueues async finish runs. */
+  var swapInFlight = false;
+
   /** Sticky midpoint — PanSlider.tsx CENTER_SNAP_THRESHOLD */
   var CENTER_SNAP = 0.08;
-  /** Long-press on prev/next: seek this many seconds each tick. */
-  var SKIP_BURST_STEP_SEC = 5;
-  var SKIP_BURST_INTERVAL_MS = 200;
-  /** Hold this long before burst-seek starts (tap before this = change track). */
-  var LONG_PRESS_START_MS = 400;
   var SPOTIFY_REDIRECT_URI = "https://dicotic.com/try/";
   var SPOTIFY_SCOPES = [
     "streaming",
@@ -56,12 +69,9 @@
     "user-read-private",
     "user-read-playback-state",
     "user-modify-playback-state",
-    "playlist-read-private",
-    "playlist-read-collaborative",
   ].join(" ");
 
   /** @typedef {'left'|'right'} ChannelSide */
-  /** @typedef {'off'|'queue'|'one'} RepeatMode */
   /** @typedef {'local'|'portal'} SourceKind */
 
   var trackMeta = [
@@ -73,12 +83,8 @@
   var channelQueueFiles = [[], []];
   /** @type {number[]} Current playback index into channelQueueFiles. */
   var channelCurrentIndex = [0, 0];
-  /** @type {boolean[]} */
+  /** @type {boolean[]} When true, next / end-of-track picks a random index (list order unchanged). */
   var channelShuffleEnabled = [false, false];
-  /** @type {(File[]|null)[]} Snapshot before shuffle (restore on toggle off). */
-  var channelShuffleSnapshot = [null, null];
-  /** @type {RepeatMode[]} */
-  var channelRepeatMode = /** @type {RepeatMode[]} */ (["off", "off"]);
   /** Last blob: URL string per channel for revoke (parallel to audio.src when blob). */
   var channelLastBlobUrl = ["", ""];
   /** Monotonic local-load request ids to ignore stale async callbacks. */
@@ -95,8 +101,6 @@
   /** Which channel queue UI is showing, or null if closed. */
   var queuePanelChannel = /** @type {ChannelSide | null} */ (null);
 
-  /** Linear gain when Boost is on (per channel); off = 1 */
-  var BOOST_GAIN_ON = 1.55;
   var speedPresets = [0.75, 1, 1.25, 1.5];
   var speedIdx = [1, 1];
 
@@ -106,12 +110,8 @@
   var masterGain = null;
   /** @type {GainNode[]} */
   var trackGains = [];
-  /** @type {GainNode[]} */
-  var boostGains = [];
   /** @type {StereoPannerNode[]} */
   var panners = [];
-  /** @type {boolean[]} */
-  var boostOn = [false, false];
 
   var audios = [audioLeft, audioRight];
 
@@ -167,15 +167,10 @@
     ticker: null,
     tokenValue: "",
     tokenExpiresAt: 0,
-    playlists: [],
-    playlistsNext: "",
     transferBusy: false,
     modalSide: /** @type {ChannelSide | null} */ (null),
     modalLoading: false,
     modalError: "",
-    selectedPlaylistUri: "",
-    hasMorePlaylists: false,
-    isFetchingMorePlaylists: false,
   };
   var spotifyAuth = {
     accessToken: "",
@@ -442,9 +437,7 @@
         var next = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
         window.history.replaceState({}, document.title, next);
         if (side === "left" || side === "right") {
-          return enableSpotifyOnSide(side).catch(function () {
-            setStatus("Spotify signed in. Tap Spotify again to enable playback.", false);
-          });
+          return enableSpotifyOnSide(side);
         }
       })
       .catch(function () {
@@ -579,12 +572,25 @@
       }
       reqInit.headers = headers;
       return fetch("https://api.spotify.com/v1" + path, reqInit).then(function (res) {
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           clearSpotifyAuth();
           throw new Error("spotify_scope_or_auth");
         }
         if (!res.ok) {
-          throw new Error("spotify api " + res.status);
+          return res
+            .text()
+            .then(function (bodyText) {
+              var bodyMsg = "";
+              if (bodyText) {
+                var compact = bodyText.replace(/\s+/g, " ").trim();
+                if (compact) bodyMsg = ": " + compact.slice(0, 220);
+              }
+              throw new Error("spotify api " + res.status + bodyMsg);
+            })
+            .catch(function (err) {
+              if (err && err.message) throw err;
+              throw new Error("spotify api " + res.status);
+            });
         }
         if (res.status === 204) return null;
         return res.json();
@@ -623,149 +629,16 @@
     });
   }
 
-  function fetchSpotifyPlaylistsPage(offset, limit) {
-    var qs = new URLSearchParams({
-      limit: String(Number.isFinite(limit) ? limit : 30),
-      offset: String(Number.isFinite(offset) ? offset : 0),
-    });
-    return spotifyApiFetch("/me/playlists?" + qs.toString(), { method: "GET" });
-  }
-
-  function fetchSpotifyPageByNextUrl(nextUrl) {
-    if (!nextUrl) return Promise.resolve({ items: [], next: "" });
-    var absolute = String(nextUrl);
-    var prefix = "https://api.spotify.com/v1";
-    if (absolute.indexOf(prefix) === 0) {
-      return spotifyApiFetch(absolute.slice(prefix.length), { method: "GET" });
-    }
-    if (absolute.indexOf("/v1/") === 0) {
-      return spotifyApiFetch(absolute.slice(3), { method: "GET" });
-    }
-    return spotifyApiFetch(absolute, { method: "GET" });
-  }
-
-  function loadSpotifyPlaylists(forceRefresh) {
-    if (!forceRefresh && spotifyRuntime.playlists && spotifyRuntime.playlists.length) {
-      return Promise.resolve(spotifyRuntime.playlists);
-    }
-    return fetchSpotifyPlaylistsPage(0, 30).then(function (payload) {
-      var items = payload && Array.isArray(payload.items) ? payload.items : [];
-      spotifyRuntime.playlists = items;
-      spotifyRuntime.playlistsNext = payload && payload.next ? String(payload.next) : "";
-      spotifyRuntime.hasMorePlaylists = !!spotifyRuntime.playlistsNext;
-      if (!spotifyRuntime.selectedPlaylistUri && items.length) {
-        spotifyRuntime.selectedPlaylistUri = items[0].uri || "";
-      }
-      if (spotifyRuntime.selectedPlaylistUri) {
-        var selectedExists = items.some(function (it) {
-          return it && it.uri === spotifyRuntime.selectedPlaylistUri;
-        });
-        if (!selectedExists) spotifyRuntime.selectedPlaylistUri = items.length ? items[0].uri || "" : "";
-      }
-      return spotifyRuntime.playlists;
-    });
-  }
-
-  function loadMoreSpotifyPlaylists() {
-    if (!spotifyRuntime.hasMorePlaylists || spotifyRuntime.isFetchingMorePlaylists || !spotifyRuntime.playlistsNext) {
-      return Promise.resolve(false);
-    }
-    spotifyRuntime.isFetchingMorePlaylists = true;
-    return fetchSpotifyPageByNextUrl(spotifyRuntime.playlistsNext)
-      .then(function (payload) {
-        var items = payload && Array.isArray(payload.items) ? payload.items : [];
-        var seen = {};
-        (spotifyRuntime.playlists || []).forEach(function (it) {
-          if (it && it.uri) seen[it.uri] = true;
-        });
-        items.forEach(function (it2) {
-          if (!it2 || !it2.uri || seen[it2.uri]) return;
-          spotifyRuntime.playlists.push(it2);
-          seen[it2.uri] = true;
-        });
-        spotifyRuntime.playlistsNext = payload && payload.next ? String(payload.next) : "";
-        spotifyRuntime.hasMorePlaylists = !!spotifyRuntime.playlistsNext;
-        renderSpotifyList();
-        return true;
-      })
-      .catch(function () {
-        spotifyRuntime.modalError = "Could not load more playlists.";
-        setSpotifyModalLoading(false);
-        return false;
-      })
-      .finally(function () {
-        spotifyRuntime.isFetchingMorePlaylists = false;
-      });
-  }
-
-  function onSpotifyListScroll() {
-    if (!spotifyListEl || spotifyRuntime.modalLoading) return;
-    var remaining = spotifyListEl.scrollHeight - spotifyListEl.scrollTop - spotifyListEl.clientHeight;
-    if (remaining > 180) return;
-    loadMoreSpotifyPlaylists();
-  }
-
-  function playSpotifyPlaylist(playlistUri) {
-    if (!playlistUri) return Promise.reject(new Error("missing playlist"));
-    return waitForSpotifyDeviceId(5000)
-      .then(function (did) {
-        return spotifyApiFetch("/me/player/play?device_id=" + encodeURIComponent(did), {
-          method: "PUT",
-          body: JSON.stringify({
-            context_uri: playlistUri,
-          }),
-        });
-      })
-      .then(function () {
-        setStatus("Spotify playlist started on this device.", false);
-      });
-  }
-
-  function renderSpotifyList() {
-    if (!spotifyListEl) return;
-    var list = spotifyRuntime.playlists || [];
-    spotifyListEl.innerHTML = "";
-    if (spotifyEmptyEl) spotifyEmptyEl.hidden = list.length > 0 || spotifyRuntime.modalLoading;
-    for (var i = 0; i < list.length; i++) {
-      var p = list[i];
-      var uri = p && p.uri ? String(p.uri) : "";
-      if (!uri) continue;
-      var row = document.createElement("button");
-      row.type = "button";
-      row.className = "beta-spotify-row" + (spotifyRuntime.selectedPlaylistUri === uri ? " beta-spotify-row--selected" : "");
-      row.setAttribute("aria-pressed", spotifyRuntime.selectedPlaylistUri === uri ? "true" : "false");
-      row.addEventListener("click", (function (nextUri) {
-        return function () {
-          spotifyRuntime.selectedPlaylistUri = nextUri;
-          renderSpotifyList();
-        };
-      })(uri));
-
-      var nameEl = document.createElement("span");
-      nameEl.className = "beta-spotify-row-name";
-      nameEl.textContent = p && p.name ? p.name : "Playlist";
-      var metaEl = document.createElement("span");
-      metaEl.className = "beta-spotify-row-meta";
-      var total = p && p.tracks && Number.isFinite(p.tracks.total) ? p.tracks.total : 0;
-      metaEl.textContent = total > 0 ? total + " tracks" : "No tracks";
-      row.appendChild(nameEl);
-      row.appendChild(metaEl);
-      spotifyListEl.appendChild(row);
-    }
-    if (spotifyPlayBtn) spotifyPlayBtn.disabled = !spotifyRuntime.selectedPlaylistUri || spotifyRuntime.modalLoading;
-  }
-
   function setSpotifyModalLoading(isLoading) {
     spotifyRuntime.modalLoading = !!isLoading;
     if (spotifyTransferBtn) spotifyTransferBtn.disabled = spotifyRuntime.modalLoading;
-    if (spotifyRefreshBtn) spotifyRefreshBtn.disabled = spotifyRuntime.modalLoading;
-    if (spotifyPlayBtn) spotifyPlayBtn.disabled = spotifyRuntime.modalLoading || !spotifyRuntime.selectedPlaylistUri;
     if (spotifyDisableBtn) spotifyDisableBtn.disabled = spotifyRuntime.modalLoading;
     if (spotifyHintEl) {
-      if (spotifyRuntime.modalLoading) spotifyHintEl.textContent = "Loading Spotify data...";
-      else if (spotifyRuntime.isFetchingMorePlaylists) spotifyHintEl.textContent = "Loading more playlists...";
+      if (spotifyRuntime.modalLoading) spotifyHintEl.textContent = "Working…";
       else if (spotifyRuntime.modalError) spotifyHintEl.textContent = spotifyRuntime.modalError;
-      else spotifyHintEl.textContent = "Choose a playlist and start it on this device.";
+      else
+        spotifyHintEl.textContent =
+          "Connect sends playback to this browser. Use channel controls for play, pause, seek, and queue.";
     }
   }
 
@@ -797,24 +670,14 @@
     spotifyRuntime.modalError = "";
     if (spotifyPanel) spotifyPanel.setAttribute("data-channel", side);
     renderSpotifyModalTitle(side);
-    if (spotifyPlayLabel) spotifyPlayLabel.textContent = side === "left" ? "Play on Left" : "Play on Right";
     spotifyRoot.hidden = false;
     spotifyRoot.setAttribute("aria-hidden", "false");
     document.body.classList.add("beta-spotify-open");
-    if (spotifyListEl) spotifyListEl.scrollTop = 0;
-    setSpotifyModalLoading(true);
-    loadSpotifyPlaylists(false)
-      .then(function () {
-        spotifyRuntime.modalError = "";
-        renderSpotifyList();
-      })
-      .catch(function () {
-        spotifyRuntime.modalError = "Could not load playlists. Please sign in again.";
-        renderSpotifyList();
-      })
-      .finally(function () {
-        setSpotifyModalLoading(false);
-      });
+    setSpotifyModalLoading(false);
+    if (spotifyHintEl) {
+      spotifyHintEl.textContent =
+        "Connect sends playback to this browser. Use channel controls for play, pause, seek, and queue.";
+    }
   }
 
   function transferPlaybackToCurrentDevice(silent) {
@@ -828,12 +691,22 @@
         if (!silent) setStatus("Spotify transferred to this device.", false);
       })
       .catch(function (err) {
+        var reason = err && err.message ? err.message : "unknown";
+        if (typeof console !== "undefined" && console.error) {
+          console.error("[Spotify transfer failure]", reason, err);
+        }
         if (err && err.message === "spotify_scope_or_auth") {
           setStatus("Spotify permissions changed. Please sign in again.", true);
           return;
         }
+        if (reason.indexOf("spotify api 403") === 0) {
+          setStatus("Spotify rejected transfer (403). Premium/device permissions may block Web Playback.", true);
+          if (spotifyRuntime.activeSide) openSpotifySheet(spotifyRuntime.activeSide);
+          return;
+        }
         if (!silent) {
-          setStatus("Player ready, but transfer failed. Use Transfer in Spotify sheet.", true);
+          setStatus("Transfer failed (" + reason + "). Use Transfer in Spotify sheet.", true);
+          if (spotifyRuntime.activeSide) openSpotifySheet(spotifyRuntime.activeSide);
         }
       })
       .finally(function () {
@@ -870,6 +743,7 @@
     return spotifyRuntime.sdkPromise;
   }
 
+  /** Portal channel: see `dicoticPortalEngine.SPOTIFY_CHANNEL` for capability flags (speed, volume). */
   function buildSpotifyPortalDescriptor() {
     return {
       sourceKind: "portal",
@@ -980,6 +854,9 @@
         setStatus("Spotify enabled on " + side + " channel. Transferring playback...", false);
         return transferPlaybackToCurrentDevice(false);
       })
+      .then(function () {
+        openSpotifySheet(side);
+      })
       .catch(function (err) {
         setStatus("Could not enable Spotify: " + (err && err.message ? err.message : "unknown"), true);
         refreshSpotifyButtons();
@@ -1015,22 +892,6 @@
     statusEl.classList.toggle("beta-status--error", !!isError);
   }
 
-  function debugLog(runId, hypothesisId, location, message, data) {
-    fetch("http://127.0.0.1:7661/ingest/9aa15d7f-1109-489b-b396-9358a082e65d", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "39d22a" },
-      body: JSON.stringify({
-        sessionId: "39d22a",
-        runId: runId,
-        hypothesisId: hypothesisId,
-        location: location,
-        message: message,
-        data: data,
-        timestamp: Date.now(),
-      }),
-    }).catch(function () {});
-  }
-
   function clampPan(p) {
     return Math.max(-1, Math.min(1, p));
   }
@@ -1048,6 +909,12 @@
     input.setAttribute("aria-valuenow", String(v));
   }
 
+  function mirrorPanValue(value, fallback) {
+    var raw = parseFloat(String(value));
+    var base = Number.isFinite(raw) ? raw : fallback;
+    return clampPan(-base);
+  }
+
   function formatSpeedLabel(rate) {
     var s = String(rate);
     if (s.indexOf(".") === -1) return s + "×";
@@ -1060,17 +927,28 @@
       var u = ui[side];
       var portalState = channelPortalState[idx];
       var isPortal = isPortalChannel(idx);
-      var rate =
-        isPortal && portalState
-          ? Number.isFinite(portalState.playbackRate) && portalState.playbackRate > 0
+      var rate;
+      if (isPortal && portalState) {
+        rate =
+          Number.isFinite(portalState.playbackRate) && portalState.playbackRate > 0
             ? portalState.playbackRate
-            : 1
-          : speedPresets[speedIdx[idx]] || 1;
+            : 1;
+      } else if (!localSpeedStepEnabled) {
+        rate = 1;
+      } else {
+        rate = speedPresets[speedIdx[idx]] || 1;
+      }
       if (u.speedLabel) u.speedLabel.textContent = formatSpeedLabel(rate);
       if (u.speed) {
-        u.speed.disabled = isPortal;
+        var speedDisabled = isPortal || !localSpeedStepEnabled;
+        u.speed.disabled = speedDisabled;
         if (isPortal) {
           u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed unavailable for Spotify");
+        } else if (!localSpeedStepEnabled) {
+          u.speed.setAttribute(
+            "aria-label",
+            (side === "left" ? "Left" : "Right") + " playback speed fixed at 1× (disabled in this beta)",
+          );
         } else {
           u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed " + formatSpeedLabel(rate));
         }
@@ -1110,7 +988,7 @@
 
   function syncLocalPlaybackRate(idx) {
     if (isPortalChannel(idx)) return;
-    var rate = speedPresets[speedIdx[idx]] || 1;
+    var rate = localSpeedStepEnabled ? speedPresets[speedIdx[idx]] || 1 : 1;
     applyLocalRateToAudio(audios[idx], rate);
   }
 
@@ -1139,7 +1017,6 @@
 
   function clearShuffleState(chIdx) {
     channelShuffleEnabled[chIdx] = false;
-    channelShuffleSnapshot[chIdx] = null;
   }
 
   function revokeBlobForChannel(chIdx) {
@@ -1177,6 +1054,7 @@
       a.removeAttribute("src");
       a.load();
       trackMeta[chIdx] = { title: "No track loaded", artist: "" };
+      if (channelSourceKind[chIdx] === "local") syncLocalPlaybackRate(chIdx);
       renderTitles();
       updatePlayLabels();
       return Promise.resolve();
@@ -1195,6 +1073,7 @@
           resolve();
           return;
         }
+        syncLocalPlaybackRate(chIdx);
         if (typeof seekTo === "number" && Number.isFinite(seekTo) && seekTo >= 0) {
           try {
             a.currentTime = seekTo;
@@ -1224,7 +1103,6 @@
 
   function clearChannelQueue(chIdx) {
     clearShuffleState(chIdx);
-    channelRepeatMode[chIdx] = "off";
     channelQueueFiles[chIdx] = [];
     channelCurrentIndex[chIdx] = 0;
     setPlayIntent(chIdx, false);
@@ -1238,161 +1116,110 @@
     refreshQueuePanelIfOpen();
   }
 
-  function fisherYatesShuffle(arr) {
-    for (var i = arr.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = arr[i];
-      arr[i] = arr[j];
-      arr[j] = t;
-    }
-  }
-
   function toggleShuffleForChannel(chIdx) {
     var q = getQueue(chIdx);
     if (q.length <= 1) return;
+    channelShuffleEnabled[chIdx] = !channelShuffleEnabled[chIdx];
+    refreshQueuePanelIfOpen();
+  }
 
-    if (channelShuffleEnabled[chIdx]) {
-      var snap = channelShuffleSnapshot[chIdx];
-      if (!snap || snap.length === 0) {
-        channelShuffleEnabled[chIdx] = false;
-        channelShuffleSnapshot[chIdx] = null;
-        refreshQueuePanelIfOpen();
-        return;
-      }
-      var cur = getCurrentFile(chIdx);
-      channelQueueFiles[chIdx] = snap.slice();
-      channelShuffleSnapshot[chIdx] = null;
-      channelShuffleEnabled[chIdx] = false;
-      if (cur) {
-        var ni = channelQueueFiles[chIdx].indexOf(cur);
-        channelCurrentIndex[chIdx] = ni >= 0 ? ni : 0;
-      }
+  function onTrackEndedForChannel(chIdx) {
+    var q = getQueue(chIdx);
+    var index = channelCurrentIndex[chIdx];
+    if (channelShuffleEnabled[chIdx] && q.length > 1 && typeof Engine.randomShuffleAdvanceIndex === "function") {
+      channelCurrentIndex[chIdx] = Engine.randomShuffleAdvanceIndex({ queueLen: q.length, currentIndex: index });
       assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) }).then(function () {
+        updatePlayLabels();
         refreshQueuePanelIfOpen();
       });
       return;
     }
-
-    var current = getCurrentFile(chIdx);
-    channelShuffleSnapshot[chIdx] = q.slice();
-    var shuffled = q.slice();
-    fisherYatesShuffle(shuffled);
-    channelQueueFiles[chIdx] = shuffled;
-    channelShuffleEnabled[chIdx] = true;
-    if (current) {
-      var idx = shuffled.indexOf(current);
-      channelCurrentIndex[chIdx] = idx >= 0 ? idx : 0;
+    var r =
+      typeof Engine.transportAfterTrackEnded === "function"
+        ? Engine.transportAfterTrackEnded({
+            queueLen: q.length,
+            index: index,
+            playing: channelShouldBePlaying[chIdx],
+          })
+        : null;
+    if (!r) {
+      setPlayIntent(chIdx, false);
+      audios[chIdx].pause();
+      updatePlayLabels();
+      refreshQueuePanelIfOpen();
+      return;
     }
-    assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) }).then(function () {
+    if (r.pause) {
+      setPlayIntent(chIdx, false);
+      audios[chIdx].pause();
+      updatePlayLabels();
+      refreshQueuePanelIfOpen();
+      return;
+    }
+    channelCurrentIndex[chIdx] = r.index;
+    var opts = { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) };
+    if (typeof r.seekTo === "number" && Number.isFinite(r.seekTo) && r.seekTo >= 0) opts.seekTo = r.seekTo;
+    assignAudioFromCurrentIndex(chIdx, opts).then(function () {
+      updatePlayLabels();
       refreshQueuePanelIfOpen();
     });
   }
 
-  function toggleRepeatForChannel(chIdx) {
-    var m = channelRepeatMode[chIdx];
-    if (m === "off") channelRepeatMode[chIdx] = "queue";
-    else if (m === "queue") channelRepeatMode[chIdx] = "one";
-    else channelRepeatMode[chIdx] = "off";
-    refreshQueuePanelIfOpen();
-  }
-
-  /** dicotic onTrackEnd — index + repeat (Option A). */
-  function onTrackEndedForChannel(chIdx) {
-    var q = getQueue(chIdx);
-    var index = channelCurrentIndex[chIdx];
-    var repeatMode = channelRepeatMode[chIdx];
-
-    if (repeatMode === "one" && q.length > 0) {
-      assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], seekTo: 0, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
-      return;
-    }
-
-    if (index < q.length - 1) {
-      channelCurrentIndex[chIdx] = index + 1;
-      assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
-      return;
-    }
-
-    if (repeatMode === "queue" && q.length > 0) {
-      channelCurrentIndex[chIdx] = 0;
-      assignAudioFromCurrentIndex(chIdx, { doPlay: channelShouldBePlaying[chIdx], intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
-      return;
-    }
-
-    setPlayIntent(chIdx, false);
-    audios[chIdx].pause();
-    updatePlayLabels();
-    refreshQueuePanelIfOpen();
-  }
-
-  /**
-   * Manual next track: repeat-one does not block advancing (unlike onTrackEndedForChannel).
-   */
   function skipToNextTrack(chIdx) {
     var q = getQueue(chIdx);
     if (q.length === 0) return;
     var playing = channelShouldBePlaying[chIdx];
     var index = channelCurrentIndex[chIdx];
-    var repeatMode = channelRepeatMode[chIdx];
-
-    if (index < q.length - 1) {
-      channelCurrentIndex[chIdx] = index + 1;
+    if (channelShuffleEnabled[chIdx] && q.length > 1 && typeof Engine.randomShuffleAdvanceIndex === "function") {
+      channelCurrentIndex[chIdx] = Engine.randomShuffleAdvanceIndex({ queueLen: q.length, currentIndex: index });
       assignAudioFromCurrentIndex(chIdx, { doPlay: playing, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
         updatePlayLabels();
         refreshQueuePanelIfOpen();
       });
       return;
     }
-    if (repeatMode === "queue" && q.length > 0) {
-      channelCurrentIndex[chIdx] = 0;
-      assignAudioFromCurrentIndex(chIdx, { doPlay: playing, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
+    var r =
+      typeof Engine.transportManualNext === "function"
+        ? Engine.transportManualNext({
+            queueLen: q.length,
+            index: index,
+            playing: playing,
+          })
+        : null;
+    if (!r || r.noop) return;
+    if (r.pause) {
+      setPlayIntent(chIdx, false);
+      audios[chIdx].pause();
+      updatePlayLabels();
+      refreshQueuePanelIfOpen();
       return;
     }
-    setPlayIntent(chIdx, false);
-    audios[chIdx].pause();
-    updatePlayLabels();
-    refreshQueuePanelIfOpen();
+    channelCurrentIndex[chIdx] = r.index;
+    assignAudioFromCurrentIndex(chIdx, { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
+      updatePlayLabels();
+      refreshQueuePanelIfOpen();
+    });
   }
 
-  /**
-   * Manual previous track: repeat-one does not block (same as skipToNextTrack).
-   */
+  /** Previous: always previous item in list order (shuffle affects forward only). */
   function skipToPreviousTrack(chIdx) {
     var q = getQueue(chIdx);
     if (q.length === 0) return;
     var playing = channelShouldBePlaying[chIdx];
     var index = channelCurrentIndex[chIdx];
-    var repeatMode = channelRepeatMode[chIdx];
-
-    if (index > 0) {
-      channelCurrentIndex[chIdx] = index - 1;
-      assignAudioFromCurrentIndex(chIdx, { doPlay: playing, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
-      return;
-    }
-    if (repeatMode === "queue" && q.length > 0) {
-      channelCurrentIndex[chIdx] = q.length - 1;
-      assignAudioFromCurrentIndex(chIdx, { doPlay: playing, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
-        updatePlayLabels();
-        refreshQueuePanelIfOpen();
-      });
-      return;
-    }
-    assignAudioFromCurrentIndex(chIdx, { doPlay: playing, seekTo: 0, intentToken: currentPlayIntentToken(chIdx) }).then(function () {
+    var r =
+      typeof Engine.transportManualPrev === "function"
+        ? Engine.transportManualPrev({
+            queueLen: q.length,
+            index: index,
+            playing: playing,
+          })
+        : null;
+    if (!r || r.noop) return;
+    channelCurrentIndex[chIdx] = r.index;
+    var opts = { doPlay: r.doPlay, intentToken: currentPlayIntentToken(chIdx) };
+    if (typeof r.seekTo === "number" && Number.isFinite(r.seekTo) && r.seekTo >= 0) opts.seekTo = r.seekTo;
+    assignAudioFromCurrentIndex(chIdx, opts).then(function () {
       updatePlayLabels();
       refreshQueuePanelIfOpen();
     });
@@ -1433,7 +1260,6 @@
     if (q.length === 0) {
       setPlayIntent(chIdx, false);
       clearShuffleState(chIdx);
-      channelRepeatMode[chIdx] = "off";
       revokeBlobForChannel(chIdx);
       audios[chIdx].removeAttribute("src");
       audios[chIdx].load();
@@ -1446,39 +1272,34 @@
     refreshQueuePanelIfOpen();
   }
 
-  function moveQueueItem(chIdx, fromIdx, toIdx) {
-    var q = getQueue(chIdx);
-    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= q.length || toIdx >= q.length) return;
-    if (fromIdx === channelCurrentIndex[chIdx]) return;
-    var curFile = getCurrentFile(chIdx);
-    var item = q.splice(fromIdx, 1)[0];
-    var dest = toIdx;
-    if (fromIdx < toIdx) dest = toIdx - 1;
-    q.splice(dest, 0, item);
+  function updateQueueHeaderButtons(chIdx) {
+    if (!queueShuffleBtn) return;
+    var sh = channelShuffleEnabled[chIdx];
+    queueShuffleBtn.setAttribute("aria-pressed", sh ? "true" : "false");
+    queueShuffleBtn.classList.toggle("beta-queue-icon--active", sh);
+    queueShuffleBtn.setAttribute(
+      "aria-label",
+      sh ? "Shuffle on: next track picks randomly from the list" : "Shuffle off: play in list order",
+    );
+  }
+
+  /**
+   * Reorder queue after drag-and-drop. `toIndex` is the row index to insert before (in pre-move indices).
+   * Keeps playback on the same file via indexOf after reorder.
+   */
+  function reorderQueueItem(chIdx, fromIndex, toIndex) {
+    var q = channelQueueFiles[chIdx];
+    if (fromIndex < 0 || fromIndex >= q.length || toIndex < 0 || toIndex > q.length) return;
+    if (fromIndex === toIndex) return;
+    var curFile = q[channelCurrentIndex[chIdx]] || null;
+    var file = q.splice(fromIndex, 1)[0];
+    var insertAt = fromIndex < toIndex ? toIndex - 1 : toIndex;
+    q.splice(insertAt, 0, file);
     if (curFile) {
       var ni = q.indexOf(curFile);
       channelCurrentIndex[chIdx] = ni >= 0 ? ni : 0;
     }
     refreshQueuePanelIfOpen();
-  }
-
-  function updateQueueHeaderButtons(chIdx) {
-    if (!queueShuffleBtn || !queueRepeatBtn) return;
-    var sh = channelShuffleEnabled[chIdx];
-    queueShuffleBtn.setAttribute("aria-pressed", sh ? "true" : "false");
-    queueShuffleBtn.classList.toggle("beta-queue-icon--active", sh);
-
-    var rep = channelRepeatMode[chIdx];
-    queueRepeatBtn.setAttribute("aria-pressed", rep !== "off" ? "true" : "false");
-    queueRepeatBtn.classList.toggle("beta-queue-icon--active", rep !== "off");
-    var badge = queueRepeatBtn.querySelector(".beta-queue-repeat-badge");
-    if (badge) {
-      badge.hidden = rep !== "one";
-    }
-    queueRepeatBtn.setAttribute(
-      "aria-label",
-      rep === "off" ? "Repeat off" : rep === "queue" ? "Repeat queue" : "Repeat one track",
-    );
   }
 
   function renderQueueList() {
@@ -1499,6 +1320,8 @@
     }
     queueListEl.innerHTML = "";
 
+    var portal = isPortalChannel(chIdx);
+
     for (var i = 0; i < q.length; i++) {
       (function (rowIndex) {
         var file = q[rowIndex];
@@ -1506,6 +1329,37 @@
         row.className = "beta-queue-row" + (rowIndex === cur ? " beta-queue-row--current" : "");
         row.setAttribute("role", "listitem");
         row.dataset.queueIndex = String(rowIndex);
+
+        if (!portal) {
+          var handle = document.createElement("span");
+          handle.className = "beta-queue-row-handle";
+          handle.setAttribute("draggable", "true");
+          handle.setAttribute("aria-label", "Drag to reorder");
+          handle.setAttribute("title", "Drag to reorder");
+          handle.addEventListener("dragstart", function (e) {
+            e.dataTransfer.setData("application/x-dicotic-queue-from", String(rowIndex));
+            e.dataTransfer.effectAllowed = "move";
+            row.classList.add("beta-queue-row--dragging");
+          });
+          handle.addEventListener("dragend", function () {
+            row.classList.remove("beta-queue-row--dragging");
+          });
+          row.appendChild(handle);
+
+          row.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            try {
+              e.dataTransfer.dropEffect = "move";
+            } catch (err) {}
+          });
+          row.addEventListener("drop", function (e) {
+            e.preventDefault();
+            var from = parseInt(e.dataTransfer.getData("application/x-dicotic-queue-from"), 10);
+            var to = rowIndex;
+            if (!Number.isFinite(from) || from === to) return;
+            reorderQueueItem(chIdx, from, to);
+          });
+        }
 
         var idxEl = document.createElement("span");
         idxEl.className = "beta-queue-row-idx";
@@ -1530,80 +1384,12 @@
           removeQueueItemAt(chIdx, rowIndex);
         });
 
-        var handle = document.createElement("span");
-        handle.className = "beta-queue-row-handle";
-        handle.setAttribute("aria-hidden", "true");
-        handle.innerHTML =
-          '<svg class="ionicon" width="22" height="22" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="48" d="M80 144h352M80 256h352M80 368h352"/></svg>';
-
-        if (rowIndex !== cur) {
-          row.setAttribute("draggable", "true");
-          handle.setAttribute("aria-label", "Drag to reorder");
-        } else {
-          row.setAttribute("draggable", "false");
-        }
-
         row.appendChild(idxEl);
         row.appendChild(titleBtn);
         row.appendChild(del);
-        row.appendChild(handle);
         queueListEl.appendChild(row);
       })(i);
     }
-
-    wireQueueListDnD(chIdx);
-  }
-
-  var dndDragCh = -1;
-  var dndFromIndex = -1;
-
-  function wireQueueListDnD(chIdx) {
-    if (!queueListEl) return;
-    var rows = queueListEl.querySelectorAll(".beta-queue-row");
-
-    rows.forEach(function (row) {
-      var fromIdx = parseInt(row.dataset.queueIndex || "-1", 10);
-      if (fromIdx < 0) return;
-
-      row.addEventListener("dragstart", function (e) {
-        dndDragCh = chIdx;
-        dndFromIndex = fromIdx;
-        row.classList.add("beta-queue-row--dragging");
-        if (e.dataTransfer) {
-          e.dataTransfer.effectAllowed = "move";
-          try {
-            e.dataTransfer.setData("text/plain", String(fromIdx));
-          } catch (err) {}
-        }
-      });
-      row.addEventListener("dragend", function () {
-        row.classList.remove("beta-queue-row--dragging");
-        dndDragCh = -1;
-        dndFromIndex = -1;
-        rows.forEach(function (r) {
-          r.classList.remove("beta-queue-row--drop-target");
-        });
-      });
-      row.addEventListener("dragover", function (e) {
-        if (dndDragCh !== chIdx || dndFromIndex < 0) return;
-        e.preventDefault();
-        var targetIdx = parseInt(row.dataset.queueIndex || "-1", 10);
-        if (targetIdx < 0) return;
-        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-        row.classList.add("beta-queue-row--drop-target");
-      });
-      row.addEventListener("dragleave", function () {
-        row.classList.remove("beta-queue-row--drop-target");
-      });
-      row.addEventListener("drop", function (e) {
-        e.preventDefault();
-        row.classList.remove("beta-queue-row--drop-target");
-        if (dndDragCh !== chIdx || dndFromIndex < 0) return;
-        var toIdx = parseInt(row.dataset.queueIndex || "-1", 10);
-        if (toIdx < 0) return;
-        moveQueueItem(chIdx, dndFromIndex, toIdx);
-      });
-    });
   }
 
   function refreshQueuePanelIfOpen() {
@@ -1659,21 +1445,6 @@
     syncQueueDrawerSideClass();
   }
 
-  function applyBoostToGraph() {
-    for (var i = 0; i < boostGains.length; i++) {
-      var g = boostGains[i];
-      if (!g) continue;
-      g.gain.value = boostOn[i] ? BOOST_GAIN_ON : 1;
-    }
-  }
-
-  function setBoostUi(idx) {
-    var u = idx === 0 ? ui.left : ui.right;
-    if (u.boost) {
-      u.boost.setAttribute("aria-pressed", boostOn[idx] ? "true" : "false");
-    }
-  }
-
   function applyPansToGraph() {
     if (panners.length < 2) return;
     var pl = ui.left.pan ? parseFloat(ui.left.pan.value) : -1;
@@ -1700,7 +1471,6 @@
   function ensureGraph() {
     if (ctx) {
       applyPansToGraph();
-      applyBoostToGraph();
       return resumeAudioContextIfNeeded();
     }
 
@@ -1720,20 +1490,14 @@
       var volEl = i === 0 ? ui.left.vol : ui.right.vol;
       var iv = volEl ? parseFloat(volEl.value) : 1;
       g.gain.value = Number.isFinite(iv) ? iv : 1;
-      var b = ctx.createGain();
-      b.gain.value = boostOn[i] ? BOOST_GAIN_ON : 1;
       var panner = ctx.createStereoPanner();
       var src = ctx.createMediaElementSource(audios[i]);
       src.connect(g);
-      g.connect(b);
-      b.connect(panner);
+      g.connect(panner);
       panner.connect(masterGain);
       trackGains.push(g);
-      boostGains.push(b);
       panners.push(panner);
     }
-
-    applyBoostToGraph();
 
     setPanInputValue(ui.left.pan, ui.left.pan ? ui.left.pan.value : -1);
     setPanInputValue(ui.right.pan, ui.right.pan ? ui.right.pan.value : 1);
@@ -1818,7 +1582,6 @@
   function loadFilesIntoChannel(idx, files) {
     if (!files || files.length === 0) return;
     clearShuffleState(idx);
-    channelRepeatMode[idx] = "off";
     channelQueueFiles[idx] = files.slice();
     channelCurrentIndex[idx] = 0;
     ensureGraph()
@@ -1862,102 +1625,20 @@
     }
   }
 
-  function seekBurstRelative(chIdx, deltaSec) {
-    var a = audios[chIdx];
-    var nextT = a.currentTime + deltaSec;
-    if (deltaSec < 0) {
-      a.currentTime = Math.max(0, nextT);
-    } else {
-      var d = a.duration;
-      var maxT = Number.isFinite(d) && d > 0 ? d : nextT;
-      a.currentTime = Math.min(maxT, nextT);
-    }
-  }
-
-  function wirePrevNextTapOrBurst(chIdx, prevEl, nextEl) {
-    function bindSkipBtn(btn, direction) {
-      var longTimer = null;
-      var burstInt = null;
-      var didLongPress = false;
-      var capturedId = null;
-
-      function clearTimers() {
-        if (longTimer !== null) {
-          clearTimeout(longTimer);
-          longTimer = null;
-        }
-        if (burstInt !== null) {
-          clearInterval(burstInt);
-          burstInt = null;
-        }
-      }
-
-      function startBurst() {
-        longTimer = null;
-        didLongPress = true;
-        seekBurstRelative(chIdx, direction * SKIP_BURST_STEP_SEC);
-        burstInt = setInterval(function () {
-          seekBurstRelative(chIdx, direction * SKIP_BURST_STEP_SEC);
-        }, SKIP_BURST_INTERVAL_MS);
-      }
-
-      btn.addEventListener("pointerdown", function (e) {
-        if (!e.isPrimary) return;
-        e.preventDefault();
-        didLongPress = false;
-        clearTimers();
-        try {
-          btn.setPointerCapture(e.pointerId);
-          capturedId = e.pointerId;
-        } catch (err) {}
-        longTimer = setTimeout(startBurst, LONG_PRESS_START_MS);
-      });
-
-      btn.addEventListener("click", function (e) {
-        if (e.detail !== 0) return;
-        if (isPortalChannel(chIdx)) {
-          var pState = channelPortalState[chIdx];
-          safeCall(direction < 0 ? pState && pState.onPrev : pState && pState.onNext);
-          return;
-        }
-        if (direction < 0) skipToPreviousTrack(chIdx);
-        else skipToNextTrack(chIdx);
-      });
-
-      btn.addEventListener("pointerup", function (e) {
-        if (!e.isPrimary) return;
-        if (capturedId !== null) {
-          try {
-            if (btn.hasPointerCapture(capturedId)) btn.releasePointerCapture(capturedId);
-          } catch (err2) {}
-          capturedId = null;
-        }
-        var wasLongPress = didLongPress;
-        clearTimers();
-        if (!wasLongPress) {
-          if (isPortalChannel(chIdx)) {
-            var pState2 = channelPortalState[chIdx];
-            safeCall(direction < 0 ? pState2 && pState2.onPrev : pState2 && pState2.onNext);
-            return;
-          }
-          if (direction < 0) skipToPreviousTrack(chIdx);
-          else skipToNextTrack(chIdx);
-        }
-      });
-
-      btn.addEventListener("pointercancel", function () {
-        if (capturedId !== null) {
-          try {
-            if (btn.hasPointerCapture(capturedId)) btn.releasePointerCapture(capturedId);
-          } catch (err3) {}
-          capturedId = null;
-        }
-        clearTimers();
+  /** Thin V1: tap-only prev/next (no long-press burst seek). */
+  function wirePrevNextTapOnly(chIdx, prevEl, nextEl) {
+    function bind(btn, direction) {
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        if (!prevNextTapGuard("skip-" + chIdx + "-" + direction)) return;
+        dispatchPortalIntent({
+          type: direction < 0 ? Engine.INTENT.QUEUE_PREV : Engine.INTENT.QUEUE_NEXT,
+          channel: chIdx,
+        });
       });
     }
-
-    if (prevEl) bindSkipBtn(prevEl, -1);
-    if (nextEl) bindSkipBtn(nextEl, 1);
+    bind(prevEl, -1);
+    bind(nextEl, 1);
   }
 
   function wireChannel(side) {
@@ -2018,28 +1699,7 @@
 
     if (u.playBtn) {
       u.playBtn.addEventListener("click", function () {
-        if (isPortalChannel(idx)) {
-          var pState = channelPortalState[idx];
-          if (pState && pState.onPlayPause) {
-            safeCall(pState.onPlayPause, [!pState.isPlaying]);
-          }
-          return;
-        }
-        var a = audios[idx];
-        if (!a.paused) {
-          setPlayIntent(idx, false);
-          a.pause();
-          return;
-        }
-        var token = setPlayIntent(idx, true);
-        ensureGraph()
-          .then(function () {
-            if (!channelShouldBePlaying[idx] || currentPlayIntentToken(idx) !== token) return;
-            return a.play().catch(function () {
-              setStatus("Playback blocked until you interact with the page.", true);
-            });
-          })
-          .catch(function () {});
+        dispatchPortalIntent({ type: Engine.INTENT.PLAY_PAUSE, channel: idx });
       });
     }
 
@@ -2101,7 +1761,7 @@
       });
     }
 
-    wirePrevNextTapOrBurst(idx, u.prev, u.next);
+    wirePrevNextTapOnly(idx, u.prev, u.next);
 
     if (u.queue) {
       u.queue.addEventListener("click", function () {
@@ -2129,6 +1789,9 @@
           .then(function () {
             return enableSpotifyOnSide(side);
           })
+          .then(function () {
+            openSpotifySheet(side);
+          })
           .catch(function (err) {
             if (isAuthMissingError(err)) {
               return spotifyAuthStart(side);
@@ -2138,20 +1801,9 @@
       });
     }
 
-    if (u.boost) {
-      u.boost.addEventListener("click", function () {
-        boostOn[idx] = !boostOn[idx];
-        setBoostUi(idx);
-        ensureGraph()
-          .then(function () {
-            applyBoostToGraph();
-          })
-          .catch(function () {});
-      });
-    }
-
-    if (u.speed) {
+    if (u.speed && localSpeedStepEnabled) {
       u.speed.addEventListener("click", function () {
+        if (!speedTapGuard("speed-" + idx)) return;
         if (isPortalChannel(idx)) {
           renderSpeedLabels();
           return;
@@ -2183,41 +1835,7 @@
 
   if (dualPlayBtn) {
     dualPlayBtn.addEventListener("click", function () {
-      var leftPortal = isPortalChannel(0) ? channelPortalState[0] : null;
-      var rightPortal = isPortalChannel(1) ? channelPortalState[1] : null;
-      var leftPlaying = leftPortal ? !!leftPortal.isPlaying : !audioLeft.paused;
-      var rightPlaying = rightPortal ? !!rightPortal.isPlaying : !audioRight.paused;
-      var anyPlaying = leftPlaying || rightPlaying;
-      if (anyPlaying) {
-        setPlayIntent(0, false);
-        setPlayIntent(1, false);
-        if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [false]);
-        else audioLeft.pause();
-        if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [false]);
-        else audioRight.pause();
-        updatePlayLabels();
-        return;
-      }
-
-      ensureGraph()
-        .then(function () {
-          var tasks = [];
-          if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [true]);
-          else {
-            var tokenLeft = setPlayIntent(0, true);
-            if (channelShouldBePlaying[0] && currentPlayIntentToken(0) === tokenLeft) tasks.push(audioLeft.play());
-          }
-          if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [true]);
-          else {
-            var tokenRight = setPlayIntent(1, true);
-            if (channelShouldBePlaying[1] && currentPlayIntentToken(1) === tokenRight) tasks.push(audioRight.play());
-          }
-          if (tasks.length === 0) return;
-          return Promise.all(tasks).catch(function () {
-            setStatus("Playback blocked or no audio loaded.", true);
-          });
-        })
-        .catch(function () {});
+      dispatchPortalIntent({ type: Engine.INTENT.DUAL_TOGGLE });
     });
   }
 
@@ -2255,17 +1873,116 @@
       if (queuePanelChannel) clearChannelQueue(sideToIdx(queuePanelChannel));
     });
   }
-  if (queueShuffleBtn) {
-    queueShuffleBtn.addEventListener("click", function () {
-      if (queuePanelChannel) toggleShuffleForChannel(sideToIdx(queuePanelChannel));
-    });
-  }
-  if (queueRepeatBtn) {
-    queueRepeatBtn.addEventListener("click", function () {
-      if (queuePanelChannel) toggleRepeatForChannel(sideToIdx(queuePanelChannel));
-    });
+  function applyChannelPlayPauseIntent(idx) {
+    if (typeof idx !== "number" || idx < 0 || idx > 1) return;
+    if (isPortalChannel(idx)) {
+      if (!mainPlayTapGuard("portal-play-" + idx)) return;
+      var pState = channelPortalState[idx];
+      if (pState && pState.onPlayPause) {
+        safeCall(pState.onPlayPause, [!pState.isPlaying]);
+      }
+      return;
+    }
+    if (!mainPlayTapGuard("play-" + idx)) return;
+    var a = audios[idx];
+    if (!a.paused) {
+      setPlayIntent(idx, false);
+      a.pause();
+      return;
+    }
+    var token = setPlayIntent(idx, true);
+    ensureGraph()
+      .then(function () {
+        if (!channelShouldBePlaying[idx] || currentPlayIntentToken(idx) !== token) return;
+        return a.play().catch(function () {
+          setStatus("Playback blocked until you interact with the page.", true);
+        });
+      })
+      .catch(function () {});
   }
 
+  function applyDualPlayToggleIntent() {
+    var leftPortal = isPortalChannel(0) ? channelPortalState[0] : null;
+    var rightPortal = isPortalChannel(1) ? channelPortalState[1] : null;
+    var leftPlaying = leftPortal ? !!leftPortal.isPlaying : !audioLeft.paused;
+    var rightPlaying = rightPortal ? !!rightPortal.isPlaying : !audioRight.paused;
+    var anyPlaying = leftPlaying || rightPlaying;
+    if (anyPlaying) {
+      setPlayIntent(0, false);
+      setPlayIntent(1, false);
+      if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [false]);
+      else audioLeft.pause();
+      if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [false]);
+      else audioRight.pause();
+      updatePlayLabels();
+      return;
+    }
+    if (!mainPlayTapGuard("dual-play")) return;
+    ensureGraph()
+      .then(function () {
+        var tasks = [];
+        if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [true]);
+        else {
+          var tokenLeft = setPlayIntent(0, true);
+          if (channelShouldBePlaying[0] && currentPlayIntentToken(0) === tokenLeft) tasks.push(audioLeft.play());
+        }
+        if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [true]);
+        else {
+          var tokenRight = setPlayIntent(1, true);
+          if (channelShouldBePlaying[1] && currentPlayIntentToken(1) === tokenRight) tasks.push(audioRight.play());
+        }
+        if (tasks.length === 0) return;
+        return Promise.all(tasks).catch(function () {
+          setStatus("Playback blocked or no audio loaded.", true);
+        });
+      })
+      .catch(function () {});
+  }
+
+  function dispatchPortalIntent(intent) {
+    if (!intent || !intent.type || !Engine.INTENT) return;
+    switch (intent.type) {
+      case Engine.INTENT.SHUFFLE_TOGGLE:
+        if (queuePanelChannel) toggleShuffleForChannel(sideToIdx(queuePanelChannel));
+        break;
+      case Engine.INTENT.PLAY_PAUSE:
+        applyChannelPlayPauseIntent(intent.channel);
+        break;
+      case Engine.INTENT.DUAL_TOGGLE:
+        applyDualPlayToggleIntent();
+        break;
+      case Engine.INTENT.SWAP_CHANNELS:
+        if (!mainPlayTapGuard("swap-queues")) break;
+        ensureGraph()
+          .then(function () {
+            return swapQueues();
+          })
+          .catch(function () {});
+        break;
+      case Engine.INTENT.QUEUE_PREV:
+        if (typeof intent.channel !== "number" || intent.channel < 0 || intent.channel > 1) break;
+        if (isPortalChannel(intent.channel)) {
+          var psP = channelPortalState[intent.channel];
+          safeCall(psP && psP.onPrev);
+        } else skipToPreviousTrack(intent.channel);
+        break;
+      case Engine.INTENT.QUEUE_NEXT:
+        if (typeof intent.channel !== "number" || intent.channel < 0 || intent.channel > 1) break;
+        if (isPortalChannel(intent.channel)) {
+          var psN = channelPortalState[intent.channel];
+          safeCall(psN && psN.onNext);
+        } else skipToNextTrack(intent.channel);
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (queueShuffleBtn) {
+    queueShuffleBtn.addEventListener("click", function () {
+      dispatchPortalIntent({ type: Engine.INTENT.SHUFFLE_TOGGLE });
+    });
+  }
   if (spotifyBackdrop) {
     spotifyBackdrop.addEventListener("click", function () {
       closeSpotifySheet();
@@ -2284,44 +2001,6 @@
       });
     });
   }
-  if (spotifyRefreshBtn) {
-    spotifyRefreshBtn.addEventListener("click", function () {
-      setSpotifyModalLoading(true);
-      loadSpotifyPlaylists(true)
-        .then(function () {
-          spotifyRuntime.modalError = "";
-          renderSpotifyList();
-        })
-        .catch(function () {
-          spotifyRuntime.modalError = "Could not refresh playlists.";
-          renderSpotifyList();
-        })
-        .finally(function () {
-          setSpotifyModalLoading(false);
-        });
-    });
-  }
-  if (spotifyPlayBtn) {
-    spotifyPlayBtn.addEventListener("click", function () {
-      var side = spotifyRuntime.modalSide;
-      if (!side || !spotifyRuntime.selectedPlaylistUri) return;
-      setSpotifyModalLoading(true);
-      enableSpotifyOnSide(side)
-        .then(function () {
-          return playSpotifyPlaylist(spotifyRuntime.selectedPlaylistUri);
-        })
-        .catch(function (err) {
-          if (err && err.message === "spotify_scope_or_auth") {
-            setStatus("Spotify permissions changed. Please sign in again.", true);
-            return;
-          }
-          setStatus("Could not start playlist: " + (err && err.message ? err.message : "unknown"), true);
-        })
-        .finally(function () {
-          setSpotifyModalLoading(false);
-        });
-    });
-  }
   if (spotifyDisableBtn) {
     spotifyDisableBtn.addEventListener("click", function () {
       var side = spotifyRuntime.modalSide;
@@ -2330,101 +2009,69 @@
       closeSpotifySheet();
     });
   }
-  if (spotifyListEl) {
-    spotifyListEl.addEventListener("scroll", onSpotifyListScroll);
-  }
-
   window.addEventListener("resize", function () {
     if (!queueRoot || queueRoot.hidden) return;
     setQueueLayoutClass();
   });
 
+  /** @param {0|1} chIdx */
+  function readChannelSwapSlice(chIdx) {
+    var u = chIdx === 0 ? ui.left : ui.right;
+    return {
+      queueFiles: channelQueueFiles[chIdx],
+      currentIndex: channelCurrentIndex[chIdx],
+      shuffleEnabled: channelShuffleEnabled[chIdx],
+      lastBlobUrl: channelLastBlobUrl[chIdx],
+      sourceKind: channelSourceKind[chIdx],
+      portalState: clonePortalState(channelPortalState[chIdx]),
+      trackMeta: { title: trackMeta[chIdx].title, artist: trackMeta[chIdx].artist || "" },
+      speedIdx: speedIdx[chIdx],
+      volValue: u && u.vol ? u.vol.value : "1",
+      panValue: u && u.pan ? u.pan.value : chIdx === 0 ? "-1" : "1",
+      playingIntent: channelShouldBePlaying[chIdx],
+    };
+  }
+
+  /** @param {0|1} chIdx @param {Object} S slice from engine.swapChannelSlices */
+  function applyChannelSwapSlice(chIdx, S) {
+    channelQueueFiles[chIdx] = S.queueFiles;
+    channelCurrentIndex[chIdx] = S.currentIndex;
+    channelShuffleEnabled[chIdx] = S.shuffleEnabled;
+    channelLastBlobUrl[chIdx] = S.lastBlobUrl;
+    channelSourceKind[chIdx] = S.sourceKind;
+    channelPortalState[chIdx] = S.portalState;
+    trackMeta[chIdx] = S.trackMeta;
+    speedIdx[chIdx] = S.speedIdx;
+    if (!localSpeedStepEnabled) speedIdx[chIdx] = 1;
+    var u = chIdx === 0 ? ui.left : ui.right;
+    if (u && u.vol) u.vol.value = S.volValue;
+    setPanInputValue(u && u.pan, S.panValue);
+    channelShouldBePlaying[chIdx] = S.playingIntent;
+  }
+
   function swapQueues() {
+    if (swapInFlight) return Promise.resolve();
+    swapInFlight = true;
     var al = audioLeft;
     var ar = audioRight;
     var srcL = al.src;
     var srcR = ar.src;
-    var metaL = { title: trackMeta[0].title, artist: trackMeta[0].artist || "" };
-    var metaR = { title: trackMeta[1].title, artist: trackMeta[1].artist || "" };
     var tL = al.currentTime;
     var tR = ar.currentTime;
     var pausedL = al.paused;
     var pausedR = ar.paused;
-    var rateL = al.playbackRate;
-    var rateR = ar.playbackRate;
     var kindL = channelSourceKind[0];
     var kindR = channelSourceKind[1];
-    var portalL = clonePortalState(channelPortalState[0]);
-    var portalR = clonePortalState(channelPortalState[1]);
 
-    var qL = channelQueueFiles[0];
-    var qR = channelQueueFiles[1];
-    var iL = channelCurrentIndex[0];
-    var iR = channelCurrentIndex[1];
-    var shL = channelShuffleEnabled[0];
-    var shR = channelShuffleEnabled[1];
-    var snL = channelShuffleSnapshot[0];
-    var snR = channelShuffleSnapshot[1];
-    var rL = channelRepeatMode[0];
-    var rR = channelRepeatMode[1];
-    var blobL = channelLastBlobUrl[0];
-    var blobR = channelLastBlobUrl[1];
-    var speedL = speedIdx[0];
-    var speedR = speedIdx[1];
-    var boostL = boostOn[0];
-    var boostR = boostOn[1];
-    var volL = ui.left.vol ? ui.left.vol.value : "1";
-    var volR = ui.right.vol ? ui.right.vol.value : "1";
-    var panL = ui.left.pan ? ui.left.pan.value : "-1";
-    var panR = ui.right.pan ? ui.right.pan.value : "1";
-    var intentL = channelShouldBePlaying[0];
-    var intentR = channelShouldBePlaying[1];
-
-    // #region agent log
-    debugLog("pre-fix", "H1_H3", "src/tryPortal.js:swapQueues:start", "Swap start snapshot", {
-      srcL: srcL || "",
-      srcR: srcR || "",
-      pausedL: pausedL,
-      pausedR: pausedR,
-      currentTimeL: tL,
-      currentTimeR: tR,
-      queueLenL: qL.length,
-      queueLenR: qR.length,
-      idxL: iL,
-      idxR: iR,
-      sourceKindL: kindL,
-      sourceKindR: kindR,
-    });
-    // #endregion
-
-    channelQueueFiles[0] = qR;
-    channelQueueFiles[1] = qL;
-    channelCurrentIndex[0] = iR;
-    channelCurrentIndex[1] = iL;
-    channelShuffleEnabled[0] = shR;
-    channelShuffleEnabled[1] = shL;
-    channelShuffleSnapshot[0] = snR ? snR.slice() : null;
-    channelShuffleSnapshot[1] = snL ? snL.slice() : null;
-    channelRepeatMode[0] = rR;
-    channelRepeatMode[1] = rL;
-    channelLastBlobUrl[0] = blobR;
-    channelLastBlobUrl[1] = blobL;
-    channelSourceKind[0] = kindR;
-    channelSourceKind[1] = kindL;
-    channelPortalState[0] = portalR;
-    channelPortalState[1] = portalL;
-    trackMeta[0] = metaR;
-    trackMeta[1] = metaL;
-    speedIdx[0] = speedR;
-    speedIdx[1] = speedL;
-    boostOn[0] = boostR;
-    boostOn[1] = boostL;
-    if (ui.left.vol) ui.left.vol.value = volR;
-    if (ui.right.vol) ui.right.vol.value = volL;
-    setPanInputValue(ui.left.pan, panR);
-    setPanInputValue(ui.right.pan, panL);
-    channelShouldBePlaying[0] = intentR;
-    channelShouldBePlaying[1] = intentL;
+    var sliceL = readChannelSwapSlice(0);
+    var sliceR = readChannelSwapSlice(1);
+    var swapped =
+      typeof Engine.swapChannelSlices === "function" ? Engine.swapChannelSlices(sliceL, sliceR) : { left: sliceR, right: sliceL };
+    // Mirror pans while swapping sides so audio exits the opposite speaker as expected.
+    swapped.left.panValue = String(mirrorPanValue(sliceR.panValue, 1));
+    swapped.right.panValue = String(mirrorPanValue(sliceL.panValue, -1));
+    applyChannelSwapSlice(0, swapped.left);
+    applyChannelSwapSlice(1, swapped.right);
 
     channelLoadRequestId[0] += 1;
     channelLoadRequestId[1] += 1;
@@ -2440,7 +2087,6 @@
       var movedSrc = movedFrom === 0 ? srcL : srcR;
       var movedTime = movedFrom === 0 ? tL : tR;
       var movedPaused = movedFrom === 0 ? pausedL : pausedR;
-      var movedRate = movedFrom === 0 ? rateL : rateR;
       var movedKind = movedFrom === 0 ? kindL : kindR;
       if (channelSourceKind[destIdx] !== "local") {
         destAudio.removeAttribute("src");
@@ -2461,7 +2107,8 @@
         return { shouldRebindFromQueue: true };
       }
       destAudio.src = movedSrc;
-      applyLocalRateToAudio(destAudio, Number.isFinite(movedRate) ? movedRate : 1);
+      var bindRate = localSpeedStepEnabled ? speedPresets[speedIdx[destIdx]] || 1 : 1;
+      applyLocalRateToAudio(destAudio, Number.isFinite(bindRate) ? bindRate : 1);
       return {
         shouldResume: !movedPaused,
         seekTo: movedTime,
@@ -2470,16 +2117,6 @@
     }
 
     function finish() {
-      // #region agent log
-      debugLog("pre-fix", "H2_H5", "src/tryPortal.js:swapQueues:finish", "Finish called after swap", {
-        alSrc: al.src || "",
-        arSrc: ar.src || "",
-        pausedLBeforeSwap: pausedL,
-        pausedRBeforeSwap: pausedR,
-        sourceKindLeftAfterSwap: channelSourceKind[0],
-        sourceKindRightAfterSwap: channelSourceKind[1],
-      });
-      // #endregion
       var leftBinding = bindSideAudioFromSnapshot(0);
       var rightBinding = bindSideAudioFromSnapshot(1);
       var prep = [];
@@ -2489,7 +2126,7 @@
       if (rightBinding && rightBinding.shouldRebindFromQueue) {
         prep.push(assignAudioFromCurrentIndex(1, { doPlay: false }));
       }
-      Promise.all(prep)
+      return Promise.all(prep)
         .then(function () {
           if (leftBinding && Number.isFinite(leftBinding.seekTo) && al.src) {
             try {
@@ -2503,8 +2140,6 @@
           }
 
           renderTitles();
-          setBoostUi(0);
-          setBoostUi(1);
           syncLocalPlaybackRate(0);
           syncLocalPlaybackRate(1);
           renderSpeedLabels();
@@ -2512,7 +2147,6 @@
           updateSeekUi();
           applyChannelVolumeToGraph(0);
           applyChannelVolumeToGraph(1);
-          applyBoostToGraph();
           applyPansToGraph();
 
           var notifyLeftPortal = channelSourceKind[0] === "portal" ? channelPortalState[0] : null;
@@ -2525,13 +2159,7 @@
               var leftPortalState = channelPortalState[0];
               if (leftPortalState && leftPortalState.onPlayPause) safeCall(leftPortalState.onPlayPause, [true]);
             } else if (al.src) {
-              al.play().catch(function (err) {
-                // #region agent log
-                debugLog("pre-fix", "H5", "src/tryPortal.js:swapQueues:playLeftAfterSwap", "Left play after swap rejected", {
-                  reason: err && err.message ? err.message : "unknown",
-                });
-                // #endregion
-              });
+              al.play().catch(function () {});
             }
           }
           if (rightBinding && rightBinding.shouldResume && channelShouldBePlaying[1] && currentPlayIntentToken(1) === rightBinding.intentToken) {
@@ -2539,21 +2167,13 @@
               var rightPortalState = channelPortalState[1];
               if (rightPortalState && rightPortalState.onPlayPause) safeCall(rightPortalState.onPlayPause, [true]);
             } else if (ar.src) {
-              ar.play().catch(function (err2) {
-                // #region agent log
-                debugLog("pre-fix", "H5", "src/tryPortal.js:swapQueues:playRightAfterSwap", "Right play after swap rejected", {
-                  reason: err2 && err2.message ? err2.message : "unknown",
-                });
-                // #endregion
-              });
+              ar.play().catch(function () {});
             }
           }
           refreshQueuePanelIfOpen();
         })
         .catch(function () {
           renderTitles();
-          setBoostUi(0);
-          setBoostUi(1);
           syncLocalPlaybackRate(0);
           syncLocalPlaybackRate(1);
           renderSpeedLabels();
@@ -2561,32 +2181,18 @@
           updateSeekUi();
           applyChannelVolumeToGraph(0);
           applyChannelVolumeToGraph(1);
-          applyBoostToGraph();
           applyPansToGraph();
           refreshQueuePanelIfOpen();
         });
     }
-    finish();
+    return finish().finally(function () {
+      swapInFlight = false;
+    });
   }
 
   if (swapBtn) {
     swapBtn.addEventListener("click", function () {
-      // #region agent log
-      debugLog("pre-fix", "H4", "src/tryPortal.js:swapBtn:click", "Swap button clicked before ensureGraph", {
-        ctxExists: !!ctx,
-      });
-      // #endregion
-      ensureGraph()
-        .then(function () {
-          swapQueues();
-        })
-        .catch(function (err) {
-          // #region agent log
-          debugLog("pre-fix", "H4", "src/tryPortal.js:swapBtn:ensureGraphCatch", "ensureGraph rejected before swap", {
-            reason: err && err.message ? err.message : "unknown",
-          });
-          // #endregion
-        });
+      dispatchPortalIntent({ type: Engine.INTENT.SWAP_CHANNELS });
     });
   }
 
@@ -2625,8 +2231,10 @@
     } else {
       channelPortalState[chIdx] = null;
       channelShouldBePlaying[chIdx] = false;
-      if (Number.isFinite(normalized.playbackRate)) {
+      if (localSpeedStepEnabled && Number.isFinite(normalized.playbackRate)) {
         applyLocalRateToAudio(audios[chIdx], normalized.playbackRate);
+      } else {
+        applyLocalRateToAudio(audios[chIdx], 1);
       }
       if (!audios[chIdx].src && getCurrentFile(chIdx)) {
         assignAudioFromCurrentIndex(chIdx, { doPlay: false });
@@ -2659,23 +2267,6 @@
   requestAnimationFrame(loopSeek);
   renderTitles();
   renderSpeedLabels();
-  setBoostUi(0);
-  setBoostUi(1);
   updatePlayLabels();
   refreshSpotifyButtons();
-
-  window.dicoticBeta = {
-    ensureGraph: ensureGraph,
-    ensureSpotifyPlayer: initSpotifyPlayer,
-    getSpotifyDeviceId: function () {
-      return spotifyRuntime.deviceId || "";
-    },
-    swapQueues: swapQueues,
-    openQueue: openQueuePanel,
-    closeQueue: closeQueuePanel,
-    openSpotifySheet: openSpotifySheet,
-    closeSpotifySheet: closeSpotifySheet,
-    setSideSource: setSideSource,
-    updatePortalSideState: updatePortalSideState,
-  };
 })();

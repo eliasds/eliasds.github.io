@@ -71,7 +71,7 @@
               <h2 id="beta-label-left" class="beta-channel-label beta-channel-label--left">Left</h2>
               <div class="beta-segment-stack">
                 <div class="beta-transport">
-                  <button type="button" class="beta-icon-btn" id="beta-prev-left" aria-label="Left channel: tap for previous track, hold to rewind 5 seconds every 0.2 seconds">
+                  <button type="button" class="beta-icon-btn" id="beta-prev-left" aria-label="Left channel: previous track">
                     <svg class="ionicon" width="32" height="32" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="currentColor"
@@ -87,7 +87,7 @@
                       />
                     </svg>
                   </button>
-                  <button type="button" class="beta-icon-btn" id="beta-next-left" aria-label="Left channel: tap for next track, hold to fast forward 5 seconds every 0.2 seconds">
+                  <button type="button" class="beta-icon-btn" id="beta-next-left" aria-label="Left channel: next track">
                     <svg class="ionicon" width="32" height="32" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="currentColor"
@@ -190,7 +190,15 @@
                 </div>
                 <div class="beta-bottom-deck-spacer" aria-hidden="true"></div>
                 <div class="beta-tools-col">
-                  <button type="button" class="beta-tool-btn" id="beta-boost-left" aria-pressed="false" aria-label="Boost left channel">
+                  <button
+                    type="button"
+                    class="beta-tool-btn beta-tool-btn--disabled"
+                    id="beta-boost-left"
+                    disabled
+                    aria-disabled="true"
+                    title="Boost coming later"
+                    aria-label="Boost (coming later)"
+                  >
                     <svg class="ionicon beta-boost-icon" width="22" height="22" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="none"
@@ -224,7 +232,7 @@
               <h2 id="beta-label-right" class="beta-channel-label beta-channel-label--right">Right</h2>
               <div class="beta-segment-stack">
                 <div class="beta-transport">
-                  <button type="button" class="beta-icon-btn" id="beta-prev-right" aria-label="Right channel: tap for previous track, hold to rewind 5 seconds every 0.2 seconds">
+                  <button type="button" class="beta-icon-btn" id="beta-prev-right" aria-label="Right channel: previous track">
                     <svg class="ionicon" width="32" height="32" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="currentColor"
@@ -240,7 +248,7 @@
                       />
                     </svg>
                   </button>
-                  <button type="button" class="beta-icon-btn" id="beta-next-right" aria-label="Right channel: tap for next track, hold to fast forward 5 seconds every 0.2 seconds">
+                  <button type="button" class="beta-icon-btn" id="beta-next-right" aria-label="Right channel: next track">
                     <svg class="ionicon" width="32" height="32" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="currentColor"
@@ -324,7 +332,15 @@
               </div>
               <div class="beta-bottom-deck beta-bottom-deck--right">
                 <div class="beta-tools-col">
-                  <button type="button" class="beta-tool-btn" id="beta-boost-right" aria-pressed="false" aria-label="Boost right channel">
+                  <button
+                    type="button"
+                    class="beta-tool-btn beta-tool-btn--disabled"
+                    id="beta-boost-right"
+                    disabled
+                    aria-disabled="true"
+                    title="Boost coming later"
+                    aria-label="Boost (coming later)"
+                  >
                     <svg class="ionicon beta-boost-icon" width="22" height="22" viewBox="0 0 512 512" aria-hidden="true">
                       <path
                         fill="none"
@@ -530,48 +546,6 @@
                 />
               </svg>
             </button>
-            <button
-              type="button"
-              id="beta-queue-repeat"
-              class="beta-queue-icon-btn beta-queue-repeat-wrap"
-              aria-label="Repeat off"
-              aria-pressed="false"
-              title="Repeat"
-            >
-              <svg
-                class="ionicon beta-queue-repeat-icon"
-                width="28"
-                height="28"
-                viewBox="0 0 512 512"
-                aria-hidden="true"
-              >
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="32"
-                  d="M320 120l48 48-48 48"
-                />
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="32"
-                  d="M352 168H144a80.24 80.24 0 00-80 80v16M192 392l-48-48 48-48"
-                />
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="32"
-                  d="M160 344h208a80.24 80.24 0 0080-80v-16"
-                />
-              </svg>
-              <span id="beta-queue-repeat-badge" class="beta-queue-repeat-badge" hidden aria-hidden="true">1</span>
-            </button>
             <button type="button" id="beta-queue-close" class="beta-queue-icon-btn" aria-label="Close queue">
               <svg class="ionicon" width="28" height="28" viewBox="0 0 512 512" aria-hidden="true">
                 <path
@@ -587,25 +561,6 @@
           </div>
         </header>
         <div class="beta-queue-toolbar">
-          <div id="beta-queue-view-toggle" class="beta-queue-view-toggle" hidden>
-            <button
-              type="button"
-              id="beta-queue-view-queue"
-              class="beta-queue-view-btn beta-queue-view-btn--active"
-              aria-pressed="true"
-            >
-              Queue
-            </button>
-            <button
-              type="button"
-              id="beta-queue-view-library"
-              class="beta-queue-view-btn"
-              aria-pressed="false"
-            >
-              Library
-            </button>
-          </div>
-          <button type="button" id="beta-queue-load-more" class="beta-queue-clear-btn" hidden>Load more</button>
           <button type="button" id="beta-queue-clear" class="beta-queue-clear-btn">Clear queue</button>
         </div>
         <div id="beta-queue-empty" class="beta-queue-empty" hidden>
@@ -651,19 +606,6 @@
             </svg>
             <span class="beta-spotify-btn-text"><span>Connect</span><span>Spotify</span></span>
           </button>
-          <button type="button" id="beta-spotify-refresh" class="beta-spotify-btn" aria-label="Refresh playlists">
-            <svg class="ionicon" width="22" height="22" viewBox="0 0 512 512" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="34"
-                d="M320 120l48 48-48 48M352 168H144a80.24 80.24 0 00-80 80v16M192 392l-48-48 48-48M160 344h208a80.24 80.24 0 0080-80v-16"
-              />
-            </svg>
-            <span class="beta-spotify-btn-text"><span>Refresh</span><span>Playlists</span></span>
-          </button>
           <button type="button" id="beta-spotify-disable" class="beta-spotify-btn" aria-label="Disable Spotify">
             <svg class="ionicon" width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
               <path
@@ -678,20 +620,7 @@
             <span class="beta-spotify-btn-text"><span>Disable</span><span>Spotify</span></span>
           </button>
         </div>
-        <p id="beta-spotify-hint" class="beta-spotify-hint">Choose a playlist and start it on this device.</p>
-        <div id="beta-spotify-empty" class="beta-spotify-empty" hidden>No playlists found for this account.</div>
-        <div id="beta-spotify-list" class="beta-spotify-list" role="list"></div>
-        <div class="beta-spotify-footer">
-          <button type="button" id="beta-spotify-play" class="beta-spotify-play-btn">
-            <svg class="ionicon" width="17" height="17" viewBox="0 0 512 512" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M133 440a35.37 35.37 0 01-17.5-4.67c-12-6.8-19.46-20-19.46-34.33V111c0-14.37 7.46-27.53 19.46-34.33a35.13 35.13 0 0135.77.45l247.85 148.36a36 36 0 010 61l-247.89 148.4A35.5 35.5 0 01133 440z"
-              />
-            </svg>
-            <span id="beta-spotify-play-label">Play</span>
-          </button>
-        </div>
+        <p id="beta-spotify-hint" class="beta-spotify-hint">Connect sends playback to this browser.</p>
       </div>
     </div>
 
@@ -702,6 +631,7 @@
     <script>
       window.__SPOTIFY_CLIENT_ID__ = "3d3fea457c454994a673c1026257e066";
     </script>
+    <script src="../src/tryPortalEngine.js" defer></script>
     <script src="../src/tryPortal.js" defer></script>
   </body>
 </html>
