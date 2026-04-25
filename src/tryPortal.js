@@ -131,6 +131,22 @@
     statusEl.classList.toggle("beta-status--error", !!isError);
   }
 
+  function debugLog(runId, hypothesisId, location, message, data) {
+    fetch("http://127.0.0.1:7661/ingest/9aa15d7f-1109-489b-b396-9358a082e65d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "39d22a" },
+      body: JSON.stringify({
+        sessionId: "39d22a",
+        runId: runId,
+        hypothesisId: hypothesisId,
+        location: location,
+        message: message,
+        data: data,
+        timestamp: Date.now(),
+      }),
+    }).catch(function () {});
+  }
+
   function clampPan(p) {
     return Math.max(-1, Math.min(1, p));
   }
@@ -1222,6 +1238,23 @@
     var blobL = channelLastBlobUrl[0];
     var blobR = channelLastBlobUrl[1];
 
+    // #region agent log
+    debugLog("pre-fix", "H1_H3", "src/tryPortal.js:swapQueues:start", "Swap start snapshot", {
+      srcL: srcL || "",
+      srcR: srcR || "",
+      pausedL: pausedL,
+      pausedR: pausedR,
+      currentTimeL: tL,
+      currentTimeR: tR,
+      queueLenL: qL.length,
+      queueLenR: qR.length,
+      idxL: iL,
+      idxR: iR,
+      metaLTitle: metaL.title,
+      metaRTitle: metaR.title,
+    });
+    // #endregion
+
     channelQueueFiles[0] = qR;
     channelQueueFiles[1] = qL;
     channelCurrentIndex[0] = iR;
@@ -1244,6 +1277,15 @@
     trackMeta[1] = metaL;
 
     function finish() {
+      // #region agent log
+      debugLog("pre-fix", "H2_H5", "src/tryPortal.js:swapQueues:finish", "Finish called after swap", {
+        alSrc: al.src || "",
+        arSrc: ar.src || "",
+        pendingAtFinish: pending,
+        pausedLBeforeSwap: pausedL,
+        pausedRBeforeSwap: pausedR,
+      });
+      // #endregion
       if (al.src) {
         try {
           al.currentTime = tR;
@@ -1257,14 +1299,35 @@
       renderTitles();
       updatePlayLabels();
       updateSeekUi();
-      if (!pausedR && srcR) al.play().catch(function () {});
-      if (!pausedL && srcL) ar.play().catch(function () {});
+      if (!pausedR && srcR) {
+        al.play().catch(function (err) {
+          // #region agent log
+          debugLog("pre-fix", "H5", "src/tryPortal.js:swapQueues:playLeftAfterSwap", "Left play after swap rejected", {
+            reason: err && err.message ? err.message : "unknown",
+          });
+          // #endregion
+        });
+      }
+      if (!pausedL && srcL) {
+        ar.play().catch(function (err2) {
+          // #region agent log
+          debugLog("pre-fix", "H5", "src/tryPortal.js:swapQueues:playRightAfterSwap", "Right play after swap rejected", {
+            reason: err2 && err2.message ? err2.message : "unknown",
+          });
+          // #endregion
+        });
+      }
       refreshQueuePanelIfOpen();
     }
 
     var pending = 0;
     function onReady() {
       pending--;
+      // #region agent log
+      debugLog("pre-fix", "H2", "src/tryPortal.js:swapQueues:onReady", "loadeddata received for swapped source", {
+        pendingAfterDecrement: pending,
+      });
+      // #endregion
       if (pending <= 0) finish();
     }
     if (srcR) {
@@ -1280,11 +1343,22 @@
 
   if (swapBtn) {
     swapBtn.addEventListener("click", function () {
+      // #region agent log
+      debugLog("pre-fix", "H4", "src/tryPortal.js:swapBtn:click", "Swap button clicked before ensureGraph", {
+        ctxExists: !!ctx,
+      });
+      // #endregion
       ensureGraph()
         .then(function () {
           swapQueues();
         })
-        .catch(function () {});
+        .catch(function (err) {
+          // #region agent log
+          debugLog("pre-fix", "H4", "src/tryPortal.js:swapBtn:ensureGraphCatch", "ensureGraph rejected before swap", {
+            reason: err && err.message ? err.message : "unknown",
+          });
+          // #endregion
+        });
     });
   }
 
