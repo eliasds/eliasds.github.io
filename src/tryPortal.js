@@ -39,6 +39,7 @@
 
   /** @typedef {'left'|'right'} ChannelSide */
   /** @typedef {'off'|'queue'|'one'} RepeatMode */
+  /** @typedef {'local'|'portal'} SourceKind */
 
   var trackMeta = [
     { title: "No track loaded", artist: "" },
@@ -57,6 +58,10 @@
   var channelRepeatMode = /** @type {RepeatMode[]} */ (["off", "off"]);
   /** Last blob: URL string per channel for revoke (parallel to audio.src when blob). */
   var channelLastBlobUrl = ["", ""];
+  /** @type {SourceKind[]} */
+  var channelSourceKind = ["local", "local"];
+  /** @type {Array<{ title: string, artist: string, isPlaying: boolean, currentTime: number, duration: number, playbackRate: number, canSeek: boolean, onPlayPause: ((nextPlaying: boolean) => void) | null, onSeek: ((seconds: number) => void) | null, onNext: (() => void) | null, onPrev: (() => void) | null, onSetSpeed: ((rate: number) => void) | null, onSwapToSide: ((side: ChannelSide) => void) | null } | null>} */
+  var channelPortalState = [null, null];
 
   /** Which channel queue UI is showing, or null if closed. */
   var queuePanelChannel = /** @type {ChannelSide | null} */ (null);
@@ -124,6 +129,54 @@
     return side === "left" ? 0 : 1;
   }
 
+  function idxToSide(idx) {
+    return idx === 0 ? "left" : "right";
+  }
+
+  function isPortalChannel(chIdx) {
+    return channelSourceKind[chIdx] === "portal";
+  }
+
+  function getDisplayMeta(chIdx) {
+    var portalState = channelPortalState[chIdx];
+    if (isPortalChannel(chIdx) && portalState) {
+      return {
+        title: portalState.title || "Spotify portal",
+        artist: portalState.artist || "",
+      };
+    }
+    return {
+      title: trackMeta[chIdx].title || "No track loaded",
+      artist: trackMeta[chIdx].artist || "",
+    };
+  }
+
+  function clonePortalState(ps) {
+    if (!ps) return null;
+    return {
+      title: ps.title || "",
+      artist: ps.artist || "",
+      isPlaying: !!ps.isPlaying,
+      currentTime: Number.isFinite(ps.currentTime) ? ps.currentTime : 0,
+      duration: Number.isFinite(ps.duration) ? ps.duration : 0,
+      playbackRate: Number.isFinite(ps.playbackRate) && ps.playbackRate > 0 ? ps.playbackRate : 1,
+      canSeek: ps.canSeek !== false,
+      onPlayPause: typeof ps.onPlayPause === "function" ? ps.onPlayPause : null,
+      onSeek: typeof ps.onSeek === "function" ? ps.onSeek : null,
+      onNext: typeof ps.onNext === "function" ? ps.onNext : null,
+      onPrev: typeof ps.onPrev === "function" ? ps.onPrev : null,
+      onSetSpeed: typeof ps.onSetSpeed === "function" ? ps.onSetSpeed : null,
+      onSwapToSide: typeof ps.onSwapToSide === "function" ? ps.onSwapToSide : null,
+    };
+  }
+
+  function safeCall(fn, args) {
+    if (typeof fn !== "function") return;
+    try {
+      fn.apply(null, args || []);
+    } catch (err) {}
+  }
+
   function setStatus(msg, isError) {
     if (!statusEl) return;
     statusEl.textContent = msg;
@@ -174,7 +227,13 @@
     ["left", "right"].forEach(function (side) {
       var idx = side === "left" ? 0 : 1;
       var u = ui[side];
-      var rate = speedPresets[speedIdx[idx]] || 1;
+      var portalState = channelPortalState[idx];
+      var rate =
+        isPortalChannel(idx) && portalState
+          ? Number.isFinite(portalState.playbackRate) && portalState.playbackRate > 0
+            ? portalState.playbackRate
+            : 1
+          : speedPresets[speedIdx[idx]] || 1;
       if (u.speedLabel) u.speedLabel.textContent = formatSpeedLabel(rate);
       if (u.speed) {
         u.speed.setAttribute("aria-label", (side === "left" ? "Left" : "Right") + " playback speed " + formatSpeedLabel(rate));
@@ -184,22 +243,24 @@
 
   function renderTitles() {
     if (ui.left.title) {
-      ui.left.title.textContent = trackMeta[0].title;
-      ui.left.title.classList.toggle("beta-track-title--muted", trackMeta[0].title === "No track loaded");
+      var leftMeta = getDisplayMeta(0);
+      ui.left.title.textContent = leftMeta.title;
+      ui.left.title.classList.toggle("beta-track-title--muted", leftMeta.title === "No track loaded");
     }
     if (ui.left.artist) {
-      var al = trackMeta[0].artist || "";
-      ui.left.artist.textContent = al;
-      ui.left.artist.classList.toggle("beta-track-artist--empty", !al);
+      var leftArtist = getDisplayMeta(0).artist || "";
+      ui.left.artist.textContent = leftArtist;
+      ui.left.artist.classList.toggle("beta-track-artist--empty", !leftArtist);
     }
     if (ui.right.title) {
-      ui.right.title.textContent = trackMeta[1].title;
-      ui.right.title.classList.toggle("beta-track-title--muted", trackMeta[1].title === "No track loaded");
+      var rightMeta = getDisplayMeta(1);
+      ui.right.title.textContent = rightMeta.title;
+      ui.right.title.classList.toggle("beta-track-title--muted", rightMeta.title === "No track loaded");
     }
     if (ui.right.artist) {
-      var ar = trackMeta[1].artist || "";
-      ui.right.artist.textContent = ar;
-      ui.right.artist.classList.toggle("beta-track-artist--empty", !ar);
+      var rightArtist = getDisplayMeta(1).artist || "";
+      ui.right.artist.textContent = rightArtist;
+      ui.right.artist.classList.toggle("beta-track-artist--empty", !rightArtist);
     }
   }
 
@@ -805,16 +866,28 @@
       var el = audios[idx];
       var u = ui[side];
       if (!u.seek || !u.timeEl || !u.timeDur || !el) return;
-      var d = el.duration;
-      u.seek.max = Number.isFinite(d) && d > 0 ? d : 0;
-      if (!u.seek.dataset.dragging) u.seek.value = String(el.currentTime || 0);
-      u.timeEl.textContent = formatTime(el.currentTime);
-      u.timeDur.textContent = formatTime(Number.isFinite(d) ? d : 0);
+      var portalState = channelPortalState[idx];
+      var current = 0;
+      var duration = 0;
+      if (isPortalChannel(idx) && portalState) {
+        current = Number.isFinite(portalState.currentTime) ? portalState.currentTime : 0;
+        duration = Number.isFinite(portalState.duration) ? portalState.duration : 0;
+        u.seek.disabled = portalState.canSeek === false;
+      } else {
+        var d = el.duration;
+        current = el.currentTime || 0;
+        duration = Number.isFinite(d) ? d : 0;
+        u.seek.disabled = false;
+      }
+      u.seek.max = duration > 0 ? duration : 0;
+      if (!u.seek.dataset.dragging) u.seek.value = String(current);
+      u.timeEl.textContent = formatTime(current);
+      u.timeDur.textContent = formatTime(duration);
       var wrap = u.seek.closest(".beta-progress-wrap");
       if (wrap && wrap.style) {
         var pct = 0;
-        if (Number.isFinite(d) && d > 0) {
-          pct = Math.max(0, Math.min(100, ((el.currentTime || 0) / d) * 100));
+        if (duration > 0) {
+          pct = Math.max(0, Math.min(100, (current / duration) * 100));
         }
         wrap.style.setProperty("--seek-progress", pct + "%");
       }
@@ -877,7 +950,8 @@
       var u = ui[side];
       var a = audios[idx];
       if (u.playBtn && a) {
-        var playing = !a.paused;
+        var portalState = channelPortalState[idx];
+        var playing = isPortalChannel(idx) && portalState ? !!portalState.isPlaying : !a.paused;
         u.playBtn.innerHTML =
           '<svg class="ionicon beta-play-glyph" width="68" height="68" viewBox="0 0 512 512" aria-hidden="true">' +
           channelPlayIcon(playing) +
@@ -887,7 +961,9 @@
     });
 
     if (dualPlayBtn) {
-      var bothPlaying = !audioLeft.paused && !audioRight.paused;
+      var leftPlaying = isPortalChannel(0) && channelPortalState[0] ? !!channelPortalState[0].isPlaying : !audioLeft.paused;
+      var rightPlaying = isPortalChannel(1) && channelPortalState[1] ? !!channelPortalState[1].isPlaying : !audioRight.paused;
+      var bothPlaying = leftPlaying && rightPlaying;
       dualPlayBtn.innerHTML =
         '<svg class="ionicon beta-dual-play-glyph" width="88" height="88" viewBox="0 0 512 512" aria-hidden="true">' +
         channelPlayIcon(bothPlaying) +
@@ -949,6 +1025,11 @@
 
       btn.addEventListener("click", function (e) {
         if (e.detail !== 0) return;
+        if (isPortalChannel(chIdx)) {
+          var pState = channelPortalState[chIdx];
+          safeCall(direction < 0 ? pState && pState.onPrev : pState && pState.onNext);
+          return;
+        }
         if (direction < 0) skipToPreviousTrack(chIdx);
         else skipToNextTrack(chIdx);
       });
@@ -964,6 +1045,11 @@
         var wasLongPress = didLongPress;
         clearTimers();
         if (!wasLongPress) {
+          if (isPortalChannel(chIdx)) {
+            var pState2 = channelPortalState[chIdx];
+            safeCall(direction < 0 ? pState2 && pState2.onPrev : pState2 && pState2.onNext);
+            return;
+          }
           if (direction < 0) skipToPreviousTrack(chIdx);
           else skipToNextTrack(chIdx);
         }
@@ -1042,6 +1128,13 @@
 
     if (u.playBtn) {
       u.playBtn.addEventListener("click", function () {
+        if (isPortalChannel(idx)) {
+          var pState = channelPortalState[idx];
+          if (pState && pState.onPlayPause) {
+            safeCall(pState.onPlayPause, [!pState.isPlaying]);
+          }
+          return;
+        }
         ensureGraph()
           .then(function () {
             var a = audios[idx];
@@ -1064,6 +1157,13 @@
         delete u.seek.dataset.dragging;
       });
       u.seek.addEventListener("input", function () {
+        if (isPortalChannel(idx)) {
+          var pState = channelPortalState[idx];
+          if (!pState || !pState.onSeek) return;
+          var vPortal = parseFloat(u.seek.value);
+          if (Number.isFinite(vPortal)) safeCall(pState.onSeek, [vPortal]);
+          return;
+        }
         ensureGraph()
           .then(function () {
             var a = audios[idx];
@@ -1124,6 +1224,10 @@
       u.speed.addEventListener("click", function () {
         speedIdx[idx] = (speedIdx[idx] + 1) % speedPresets.length;
         var rate = speedPresets[speedIdx[idx]];
+        if (isPortalChannel(idx)) {
+          var pState = channelPortalState[idx];
+          if (pState && pState.onSetSpeed) safeCall(pState.onSetSpeed, [rate]);
+        }
         audios[idx].playbackRate = rate;
         renderSpeedLabels();
       });
@@ -1149,17 +1253,31 @@
 
   if (dualPlayBtn) {
     dualPlayBtn.addEventListener("click", function () {
+      var leftPortal = isPortalChannel(0) ? channelPortalState[0] : null;
+      var rightPortal = isPortalChannel(1) ? channelPortalState[1] : null;
+      var leftPlaying = leftPortal ? !!leftPortal.isPlaying : !audioLeft.paused;
+      var rightPlaying = rightPortal ? !!rightPortal.isPlaying : !audioRight.paused;
+      var bothPlaying = leftPlaying && rightPlaying;
+      if (bothPlaying) {
+        if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [false]);
+        else audioLeft.pause();
+        if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [false]);
+        else audioRight.pause();
+        updatePlayLabels();
+        return;
+      }
+
       ensureGraph()
         .then(function () {
-          var bothPlaying = !audioLeft.paused && !audioRight.paused;
-          if (bothPlaying) {
-            audioLeft.pause();
-            audioRight.pause();
-          } else {
-            return Promise.all([audioLeft.play(), audioRight.play()]).catch(function () {
-              setStatus("Playback blocked or no audio loaded.", true);
-            });
-          }
+          var tasks = [];
+          if (leftPortal && leftPortal.onPlayPause) safeCall(leftPortal.onPlayPause, [true]);
+          else tasks.push(audioLeft.play());
+          if (rightPortal && rightPortal.onPlayPause) safeCall(rightPortal.onPlayPause, [true]);
+          else tasks.push(audioRight.play());
+          if (tasks.length === 0) return;
+          return Promise.all(tasks).catch(function () {
+            setStatus("Playback blocked or no audio loaded.", true);
+          });
         })
         .catch(function () {});
     });
@@ -1224,6 +1342,12 @@
     var tR = ar.currentTime;
     var pausedL = al.paused;
     var pausedR = ar.paused;
+    var rateL = al.playbackRate;
+    var rateR = ar.playbackRate;
+    var kindL = channelSourceKind[0];
+    var kindR = channelSourceKind[1];
+    var portalL = clonePortalState(channelPortalState[0]);
+    var portalR = clonePortalState(channelPortalState[1]);
 
     var qL = channelQueueFiles[0];
     var qR = channelQueueFiles[1];
@@ -1250,8 +1374,8 @@
       queueLenR: qR.length,
       idxL: iL,
       idxR: iR,
-      metaLTitle: metaL.title,
-      metaRTitle: metaR.title,
+      sourceKindL: kindL,
+      sourceKindR: kindR,
     });
     // #endregion
 
@@ -1267,14 +1391,45 @@
     channelRepeatMode[1] = rL;
     channelLastBlobUrl[0] = blobR;
     channelLastBlobUrl[1] = blobL;
+    channelSourceKind[0] = kindR;
+    channelSourceKind[1] = kindL;
+    channelPortalState[0] = portalR;
+    channelPortalState[1] = portalL;
+    trackMeta[0] = metaR;
+    trackMeta[1] = metaL;
 
     al.pause();
     ar.pause();
-
-    al.src = srcR || "";
-    ar.src = srcL || "";
-    trackMeta[0] = metaR;
-    trackMeta[1] = metaL;
+    function bindSideAudioFromSnapshot(destIdx) {
+      var movedFrom = destIdx === 0 ? 1 : 0;
+      var destAudio = destIdx === 0 ? al : ar;
+      var movedSrc = movedFrom === 0 ? srcL : srcR;
+      var movedTime = movedFrom === 0 ? tL : tR;
+      var movedPaused = movedFrom === 0 ? pausedL : pausedR;
+      var movedRate = movedFrom === 0 ? rateL : rateR;
+      var movedKind = movedFrom === 0 ? kindL : kindR;
+      if (channelSourceKind[destIdx] !== "local") {
+        destAudio.removeAttribute("src");
+        destAudio.load();
+        destAudio.playbackRate = 1;
+        return;
+      }
+      if (movedKind !== "local" || !movedSrc) {
+        if (!getCurrentFile(destIdx)) {
+          destAudio.removeAttribute("src");
+          destAudio.load();
+          trackMeta[destIdx] = { title: "No track loaded", artist: "" };
+          return { shouldResume: false };
+        }
+        return { shouldRebindFromQueue: true };
+      }
+      destAudio.src = movedSrc;
+      destAudio.playbackRate = Number.isFinite(movedRate) ? movedRate : 1;
+      return {
+        shouldResume: !movedPaused,
+        seekTo: movedTime,
+      };
+    }
 
     function finish() {
       // #region agent log
@@ -1284,22 +1439,42 @@
         pendingAtFinish: pending,
         pausedLBeforeSwap: pausedL,
         pausedRBeforeSwap: pausedR,
+        sourceKindLeftAfterSwap: channelSourceKind[0],
+        sourceKindRightAfterSwap: channelSourceKind[1],
       });
       // #endregion
-      if (al.src) {
+      var leftBinding = bindSideAudioFromSnapshot(0);
+      var rightBinding = bindSideAudioFromSnapshot(1);
+
+      if (leftBinding && leftBinding.shouldRebindFromQueue) {
+        assignAudioFromCurrentIndex(0, { doPlay: false });
+      }
+      if (rightBinding && rightBinding.shouldRebindFromQueue) {
+        assignAudioFromCurrentIndex(1, { doPlay: false });
+      }
+
+      if (leftBinding && Number.isFinite(leftBinding.seekTo) && al.src) {
         try {
-          al.currentTime = tR;
+          al.currentTime = leftBinding.seekTo;
         } catch (e) {}
       }
-      if (ar.src) {
+      if (rightBinding && Number.isFinite(rightBinding.seekTo) && ar.src) {
         try {
-          ar.currentTime = tL;
+          ar.currentTime = rightBinding.seekTo;
         } catch (e) {}
       }
+
       renderTitles();
+      renderSpeedLabels();
       updatePlayLabels();
       updateSeekUi();
-      if (!pausedR && srcR) {
+
+      var notifyLeftPortal = channelSourceKind[0] === "portal" ? channelPortalState[0] : null;
+      var notifyRightPortal = channelSourceKind[1] === "portal" ? channelPortalState[1] : null;
+      if (notifyLeftPortal && notifyLeftPortal.onSwapToSide) safeCall(notifyLeftPortal.onSwapToSide, [idxToSide(0)]);
+      if (notifyRightPortal && notifyRightPortal.onSwapToSide) safeCall(notifyRightPortal.onSwapToSide, [idxToSide(1)]);
+
+      if (leftBinding && leftBinding.shouldResume && al.src) {
         al.play().catch(function (err) {
           // #region agent log
           debugLog("pre-fix", "H5", "src/tryPortal.js:swapQueues:playLeftAfterSwap", "Left play after swap rejected", {
@@ -1308,7 +1483,7 @@
           // #endregion
         });
       }
-      if (!pausedL && srcL) {
+      if (rightBinding && rightBinding.shouldResume && ar.src) {
         ar.play().catch(function (err2) {
           // #region agent log
           debugLog("pre-fix", "H5", "src/tryPortal.js:swapQueues:playRightAfterSwap", "Right play after swap rejected", {
@@ -1330,11 +1505,11 @@
       // #endregion
       if (pending <= 0) finish();
     }
-    if (srcR) {
+    if (channelSourceKind[0] === "local" && srcR) {
       pending++;
       al.addEventListener("loadeddata", onReady, { once: true });
     }
-    if (srcL) {
+    if (channelSourceKind[1] === "local" && srcL) {
       pending++;
       ar.addEventListener("loadeddata", onReady, { once: true });
     }
@@ -1362,6 +1537,63 @@
     });
   }
 
+  function normalizePortalDescriptor(descriptor) {
+    var d = descriptor || {};
+    return {
+      sourceKind: d.sourceKind === "portal" ? "portal" : "local",
+      title: typeof d.title === "string" ? d.title : "",
+      artist: typeof d.artist === "string" ? d.artist : "",
+      isPlaying: !!d.isPlaying,
+      currentTime: Number.isFinite(d.currentTime) ? d.currentTime : 0,
+      duration: Number.isFinite(d.duration) ? d.duration : 0,
+      playbackRate: Number.isFinite(d.playbackRate) && d.playbackRate > 0 ? d.playbackRate : 1,
+      canSeek: d.canSeek !== false,
+      onPlayPause: typeof d.onPlayPause === "function" ? d.onPlayPause : null,
+      onSeek: typeof d.onSeek === "function" ? d.onSeek : null,
+      onNext: typeof d.onNext === "function" ? d.onNext : null,
+      onPrev: typeof d.onPrev === "function" ? d.onPrev : null,
+      onSetSpeed: typeof d.onSetSpeed === "function" ? d.onSetSpeed : null,
+      onSwapToSide: typeof d.onSwapToSide === "function" ? d.onSwapToSide : null,
+    };
+  }
+
+  function setSideSource(side, descriptor) {
+    var chIdx = sideToIdx(side);
+    var normalized = normalizePortalDescriptor(descriptor);
+    channelSourceKind[chIdx] = normalized.sourceKind;
+    if (normalized.sourceKind === "portal") {
+      channelPortalState[chIdx] = clonePortalState(normalized);
+      audios[chIdx].pause();
+      audios[chIdx].removeAttribute("src");
+      audios[chIdx].load();
+    } else {
+      channelPortalState[chIdx] = null;
+      if (Number.isFinite(normalized.playbackRate)) {
+        audios[chIdx].playbackRate = normalized.playbackRate;
+      }
+      if (!audios[chIdx].src && getCurrentFile(chIdx)) {
+        assignAudioFromCurrentIndex(chIdx, { doPlay: false });
+      }
+    }
+    renderTitles();
+    renderSpeedLabels();
+    updatePlayLabels();
+    updateSeekUi();
+    refreshQueuePanelIfOpen();
+  }
+
+  function updatePortalSideState(side, patch) {
+    var chIdx = sideToIdx(side);
+    if (channelSourceKind[chIdx] !== "portal") return;
+    var current = clonePortalState(channelPortalState[chIdx]) || normalizePortalDescriptor({ sourceKind: "portal" });
+    var next = Object.assign({}, current, patch || {});
+    channelPortalState[chIdx] = normalizePortalDescriptor(Object.assign({}, next, { sourceKind: "portal" }));
+    renderTitles();
+    renderSpeedLabels();
+    updatePlayLabels();
+    updateSeekUi();
+  }
+
   requestAnimationFrame(loopSeek);
   renderTitles();
   renderSpeedLabels();
@@ -1374,5 +1606,7 @@
     swapQueues: swapQueues,
     openQueue: openQueuePanel,
     closeQueue: closeQueuePanel,
+    setSideSource: setSideSource,
+    updatePortalSideState: updatePortalSideState,
   };
 })();
