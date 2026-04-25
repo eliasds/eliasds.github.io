@@ -1,4 +1,3 @@
-/* Web beta — aligned with dicotic iOS app theme (constants/theme.ts darkColors) */
 
 :root.beta-app {
   --beta-bg: #0a0a0b;
@@ -9,14 +8,17 @@
   --beta-left: #a78bfa;
   --beta-right: #ea580c;
   --beta-radius: 16px;
-  /* Max width per split column (card), ~phone half-width on desktop */
+  --beta-radius-soft: 10px;
+  --beta-radius-pill: 999px;
+  --beta-stroke: 1px solid var(--beta-border);
+  --beta-hover-bg-soft: rgba(255, 255, 255, 0.05);
+  --beta-hover-bg-panel: rgba(255, 255, 255, 0.06);
+  --beta-focus-ring: 2px solid var(--beta-left);
+  --beta-touch-hit: 44px;
   --beta-max-col: 360px;
-  /* Dual-play glyph (filled triangle / pause), no disk — matches in-column play accents */
   --beta-dual-play-fill: #8eb8e0;
-  /* Footer dual play: larger tap target + glyph (iOS-style prominence) */
   --beta-dual-play-hit: 6.75rem;
   --beta-dual-play-icon: 5.5rem;
-  /* Fixed footer: single row (left | swap/play | right) + safe area */
   --beta-footer-scroll-padding: calc(10.85rem + env(safe-area-inset-bottom, 0px));
 }
 
@@ -48,7 +50,6 @@ body.beta-page .btn-ghost {
   color: var(--beta-text-secondary);
 }
 
-/* Combined fixed footer: left stack | swap+play | right stack (header keeps primary branding; no duplicate logo here) */
 body.beta-page .beta-page-footer.site-footer {
   position: fixed;
   left: 0;
@@ -63,7 +64,7 @@ body.beta-page .beta-page-footer.site-footer {
   overflow-x: hidden;
 }
 
-body.beta-page .beta-footer-inner.footer-inner {
+.beta-page .beta-footer-inner.footer-inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   grid-template-rows: auto;
@@ -72,11 +73,11 @@ body.beta-page .beta-footer-inner.footer-inner {
   row-gap: 0;
 }
 
-body.beta-page .beta-footer-side {
+.beta-page .beta-footer-side {
   min-width: 0;
 }
 
-body.beta-page .beta-footer-side--left {
+.beta-page .beta-footer-side--left {
   grid-column: 1;
   justify-self: start;
   align-self: center;
@@ -86,7 +87,7 @@ body.beta-page .beta-footer-side--left {
   min-width: 0;
 }
 
-body.beta-page .beta-footer-side--right {
+.beta-page .beta-footer-side--right {
   grid-column: 3;
   justify-self: end;
   align-self: center;
@@ -96,8 +97,7 @@ body.beta-page .beta-footer-side--right {
   min-width: 0;
 }
 
-body.beta-page .beta-footer-side--left .beta-tab-bar,
-body.beta-page .beta-footer-side--right .beta-tab-bar {
+.beta-page .beta-tab-bar {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
@@ -106,15 +106,15 @@ body.beta-page .beta-footer-side--right .beta-tab-bar {
   max-width: min(20rem, 100%);
 }
 
-body.beta-page .beta-footer-side--left .beta-tab-bar {
+.beta-page .beta-tab-bar--left {
   justify-content: flex-start;
 }
 
-body.beta-page .beta-footer-side--right .beta-tab-bar {
+.beta-page .beta-tab-bar--right {
   justify-content: flex-end;
 }
 
-body.beta-page .beta-footer-inner .beta-dual-play-cluster {
+.beta-page .beta-footer-inner .beta-dual-play-cluster {
   grid-column: 2;
   grid-row: 1;
   justify-self: center;
@@ -131,7 +131,7 @@ body.beta-page .beta-tab {
   min-height: 3rem;
   padding: 0.2rem 0.35rem;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--beta-radius-soft);
   background: transparent;
   color: var(--beta-text-secondary);
   text-decoration: none;
@@ -145,16 +145,18 @@ body.beta-page a.beta-tab:hover,
 body.beta-page a.beta-tab:active,
 body.beta-page button.beta-tab:hover:not(:disabled) {
   color: var(--beta-text);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-body.beta-page .beta-tab:focus-visible {
-  outline: 2px solid var(--beta-left);
-  outline-offset: 2px;
+  background: var(--beta-hover-bg-soft);
 }
 
 body.beta-page .beta-tab:disabled {
   opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.beta-page .beta-tool-btn:disabled,
+.beta-page .beta-small-btn:disabled,
+.beta-page .beta-spotify-btn:disabled,
+.beta-page .beta-spotify-play-btn:disabled {
   cursor: not-allowed;
 }
 
@@ -163,7 +165,7 @@ body.beta-page .beta-tab-icon {
   flex-shrink: 0;
 }
 
-body.beta-page .beta-tab-label {
+.beta-page .beta-tab-label {
   font-size: 0.62rem;
   line-height: 1.15;
   letter-spacing: 0.02em;
@@ -172,7 +174,8 @@ body.beta-page .beta-tab-label {
   max-width: 4.5rem;
 }
 
-.beta-page .sr-only {
+.beta-page .sr-only,
+.beta-page .beta-hidden-file {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -184,7 +187,6 @@ body.beta-page .beta-tab-label {
   border: 0;
 }
 
-/* Fixed footer does not consume layout height — pad main so last content clears it when scrolled */
 .beta-page .legal-main {
   padding-top: 2rem;
   padding-bottom: var(--beta-footer-scroll-padding);
@@ -242,12 +244,10 @@ body.beta-page .beta-tab-label {
   color: #fecaca;
 }
 
-/* Content column: wide enough for two ~360px player columns + gap, not full desktop stretch */
 .beta-page .legal-container {
   max-width: min(calc(var(--beta-max-col) * 2 + 2.5rem), 100%);
 }
 
-/* Two-column player (home screen) */
 .beta-page .beta-player {
   max-width: 100%;
   margin: 0 auto;
@@ -301,7 +301,6 @@ body.beta-page .beta-tab-label {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--channel-accent) 35%, transparent);
 }
 
-/* Full-width stack: transport → title/artist → progress → Queue/Add (matches iOS column body) */
 .beta-page .beta-segment-stack {
   display: flex;
   flex-direction: column;
@@ -319,7 +318,6 @@ body.beta-page .beta-tab-label {
   justify-content: center;
 }
 
-/* Bottom deck: Vol + Boost/Speed grouped with a small gap (centered in the column) */
 .beta-page .beta-bottom-deck {
   display: flex;
   flex-direction: row;
@@ -361,7 +359,6 @@ body.beta-page .beta-tab-label {
   min-width: 0;
 }
 
-/* Narrow layout box so grid column does not expand to the range input’s pre-rotate width */
 .beta-page .beta-vol-fader-slot {
   position: relative;
   width: 2.5rem;
@@ -403,8 +400,8 @@ body.beta-page .beta-tab-label {
   max-width: 3.5rem;
   max-height: 3.5rem;
   padding: 0.22rem 0.15rem;
-  border: 1px solid var(--beta-border);
-  border-radius: 999px;
+  border: var(--beta-stroke);
+  border-radius: var(--beta-radius-pill);
   background: rgba(0, 0, 0, 0.2);
   color: var(--beta-text-secondary);
   cursor: pointer;
@@ -426,13 +423,7 @@ body.beta-page .beta-tab-label {
 }
 
 .beta-page .beta-tool-btn:hover {
-  border-color: var(--beta-text-secondary);
   color: var(--beta-text);
-}
-
-.beta-page .beta-tool-btn:focus-visible {
-  outline: 2px solid var(--beta-left);
-  outline-offset: 2px;
 }
 
 .beta-page .beta-tool-btn[aria-pressed="true"] {
@@ -449,7 +440,6 @@ body.beta-page .beta-tab-label {
 .beta-page .beta-tool-btn--disabled,
 .beta-page .beta-tool-btn:disabled {
   opacity: 0.42;
-  cursor: not-allowed;
 }
 
 .beta-page .beta-speed-btn {
@@ -536,14 +526,7 @@ body.beta-page .beta-tab-label {
   font-weight: 700;
   letter-spacing: 0.01em;
   text-align: center;
-}
-
-.beta-page .beta-channel-label--left {
-  color: var(--beta-left);
-}
-
-.beta-page .beta-channel-label--right {
-  color: var(--beta-right);
+  color: var(--channel-accent);
 }
 
 .beta-page .beta-track-title {
@@ -579,7 +562,6 @@ body.beta-page .beta-tab-label {
   visibility: hidden;
 }
 
-/* Transport: prev | play | next */
 .beta-page .beta-transport {
   display: flex;
   align-items: center;
@@ -591,25 +573,47 @@ body.beta-page .beta-tab-label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: var(--beta-touch-hit);
+  height: var(--beta-touch-hit);
   padding: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--beta-radius-pill);
   background: transparent;
   color: var(--beta-text);
   cursor: pointer;
   transition: opacity 0.15s ease, transform 0.12s ease;
 }
 
+.beta-page .beta-icon-btn,
+.beta-queue-icon-btn,
+.beta-spotify-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--beta-touch-hit);
+  height: var(--beta-touch-hit);
+  padding: 0;
+  border: none;
+  border-radius: var(--beta-radius-soft);
+  background: transparent;
+  color: var(--beta-text-secondary);
+  cursor: pointer;
+}
+
+.beta-page .beta-icon-btn {
+  border-radius: var(--beta-radius-pill);
+  color: var(--beta-text);
+}
+
+.beta-queue-icon-btn,
+.beta-spotify-icon-btn {
+  border-radius: var(--beta-radius-soft);
+  color: var(--beta-text-secondary);
+}
+
 .beta-page .beta-icon-btn:hover {
   opacity: 0.9;
   transform: scale(1.04);
-}
-
-.beta-page .beta-icon-btn:focus-visible {
-  outline: 2px solid var(--beta-left);
-  outline-offset: 2px;
 }
 
 .beta-page .beta-icon-btn svg {
@@ -646,7 +650,14 @@ body.beta-page .beta-tab-label {
   height: 24px;
 }
 
-/* Progress — app-like thin bar + fill (progress set via --seek-progress on .beta-progress-wrap) */
+.beta-page .beta-tool-btn,
+.beta-page .beta-swap-tab,
+.beta-page .beta-queue-clear-btn,
+.beta-page .beta-spotify-btn,
+.beta-page .beta-spotify-play-btn {
+  border: var(--beta-stroke);
+}
+
 .beta-page .beta-progress-wrap {
   --seek-progress: 0%;
   --beta-seek-fill: var(--beta-left);
@@ -723,7 +734,6 @@ body.beta-page .beta-tab-label {
   box-shadow: 0 0 0 2px rgba(10, 10, 11, 0.95);
 }
 
-/* Bottom row: Queue, Add */
 .beta-page .beta-bottom-row {
   display: flex;
   flex-wrap: wrap;
@@ -756,7 +766,6 @@ body.beta-page .beta-tab-label {
 
 .beta-page .beta-small-btn:disabled {
   opacity: 0.48;
-  cursor: not-allowed;
   filter: grayscale(0.25);
 }
 
@@ -783,7 +792,6 @@ body.beta-page .beta-tab-label {
   color: #6ee7a2;
 }
 
-/* Balance — matches PanSlider: track + center notch + thick handle via range styling */
 .beta-page .beta-balance-block {
   display: flex;
   flex-direction: column;
@@ -889,19 +897,6 @@ body.beta-page .beta-tab-label {
   background: var(--beta-right);
 }
 
-.beta-page .beta-hidden-file {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* Dual play + swap — column stack like iOS dualPlayContent (swap above play) */
 .beta-page .beta-dual-play-cluster {
   display: flex;
   flex-direction: column;
@@ -917,8 +912,8 @@ body.beta-page .beta-tab-label {
   min-width: 2.5rem;
   min-height: 2.5rem;
   margin-bottom: 0;
-  border-radius: 999px;
-  border: 1px solid var(--beta-border);
+  border-radius: var(--beta-radius-pill);
+  border: var(--beta-stroke);
   background: var(--beta-surface);
   color: var(--beta-text-secondary);
   display: inline-flex;
@@ -936,13 +931,7 @@ body.beta-page .beta-tab-label {
 }
 
 .beta-page .beta-swap-tab:hover {
-  border-color: var(--beta-text-secondary);
   color: var(--beta-text);
-}
-
-.beta-page .beta-swap-tab:focus-visible {
-  outline: 2px solid var(--beta-left);
-  outline-offset: 2px;
 }
 
 .beta-page .beta-dual-play-btn {
@@ -969,7 +958,7 @@ body.beta-page .beta-tab-label {
 }
 
 .beta-page .beta-dual-play-btn:focus-visible {
-  outline: 2px solid var(--beta-left);
+  outline: var(--beta-focus-ring);
   outline-offset: 3px;
 }
 
@@ -979,12 +968,10 @@ body.beta-page .beta-tab-label {
   height: var(--beta-dual-play-icon);
 }
 
-/* ---- Mobile & narrow tablets (≤1080px logical width): safe areas, touch, layout ---- */
 @media (max-width: 1080px) {
   :root.beta-app {
     --beta-dual-play-hit: 6.25rem;
     --beta-dual-play-icon: 5.125rem;
-    /* Single-row footer + stacked right links; keep main scroll end clear without excess gap */
     --beta-footer-scroll-padding: calc(11.85rem + env(safe-area-inset-bottom, 0px));
   }
 
@@ -1078,7 +1065,6 @@ body.beta-page .beta-tab-label {
     display: block;
   }
 
-  /* Prev / next — keep a bit larger than ±15s for thumb targets in split columns */
   .beta-page .beta-transport .beta-icon-btn:not(.beta-play-main):not(.beta-seek-step-btn) {
     width: 34px;
     height: 34px;
@@ -1091,7 +1077,6 @@ body.beta-page .beta-tab-label {
     height: 22px;
   }
 
-  /* ±15s — compact so five controls fit narrow mobile columns */
   .beta-page .beta-transport .beta-icon-btn.beta-seek-step-btn {
     width: 26px;
     height: 26px;
@@ -1190,50 +1175,39 @@ body.beta-page .beta-tab-label {
     white-space: nowrap;
   }
 
-  body.beta-page .beta-page-footer.site-footer {
+  .beta-page .beta-page-footer.site-footer {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
 
-  body.beta-page .beta-page-footer .footer-inner {
+  .beta-page .beta-page-footer .footer-inner {
     padding-left: max(0.85rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.85rem, env(safe-area-inset-right, 0px));
     column-gap: 0.35rem;
   }
 
-  body.beta-page .beta-footer-side--left .beta-tab-bar,
-  body.beta-page .beta-footer-side--right .beta-tab-bar {
+  .beta-page .beta-tab-bar {
     flex-wrap: wrap;
     row-gap: 0.25rem;
     column-gap: 0.25rem;
     max-width: 100%;
   }
 
-  body.beta-page .beta-footer-side--right .beta-tab-bar {
-    justify-content: flex-end;
-  }
-
-  body.beta-page .beta-footer-side--left .beta-tab-bar {
-    justify-content: flex-start;
-  }
-
-  body.beta-page .beta-footer-inner .beta-tab-bar {
-    max-width: 100%;
+  .beta-page .beta-footer-inner .beta-tab-bar {
     gap: 0.15rem;
   }
 
-  body.beta-page .beta-footer-inner .beta-tab {
+  .beta-page .beta-footer-inner .beta-tab {
     min-width: 2.75rem;
     padding: 0.15rem 0.2rem;
   }
 
-  body.beta-page .beta-tab-label {
+  .beta-page .beta-tab-label {
     font-size: 0.58rem;
     max-width: 3.75rem;
   }
 }
 
-/* Only below ~340px CSS width does stacked layout beat squeezed split */
 @media (max-width: 340px) {
   .beta-page .beta-columns {
     grid-template-columns: minmax(0, 1fr);
@@ -1245,21 +1219,13 @@ body.beta-page .beta-tab-label {
   }
 }
 
-@media (max-width: 480px) {
-  body.beta-page .beta-footer-inner .beta-tab-bar {
-    column-gap: 0.15rem;
-  }
-}
-
-/* ——— Queue panel: bottom sheet (narrow) + side drawer (wide) ——— */
 body.beta-page.beta-queue-open {
   overflow: hidden;
 }
 
-.beta-queue-root {
+.beta-overlay-root {
   position: fixed;
   inset: 0;
-  z-index: 9999;
   isolation: isolate;
   pointer-events: none;
 }
@@ -1286,43 +1252,39 @@ body.beta-page.beta-queue-open {
   background: var(--beta-surface);
 }
 
+.beta-overlay-handle {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--beta-border);
+  align-self: center;
+  margin-top: 0.5rem;
+  margin-bottom: 0.35rem;
+  flex-shrink: 0;
+}
+
+.beta-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
 .beta-queue-root {
-  position: fixed;
-  inset: 0;
-  /* Above fixed footer and tabs; last in DOM + high z for mobile compositing */
   z-index: 9999;
-  isolation: isolate;
-  pointer-events: none;
-}
-
-.beta-queue-root:not([hidden]) {
-  pointer-events: auto;
-}
-
-.beta-queue-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.52);
-  -webkit-tap-highlight-color: transparent;
 }
 
 .beta-queue-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  --channel-accent: var(--beta-left);
   max-height: min(75dvh, 560px);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--beta-surface);
   border-top: 1px solid var(--beta-border);
   border-radius: var(--beta-radius) var(--beta-radius) 0 0;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
-  /* Do not combine transition on transform with sheet keyframes — WebKit mobile can leave the sheet off-screen */
 }
 
-/* Mobile sheet: start slightly below, animate up when overlay opens */
+.beta-queue-panel[data-channel="right"] {
+  --channel-accent: var(--beta-right);
+}
+
 .beta-queue-root:not([hidden]) .beta-queue-panel {
   animation: beta-queue-sheet-in 0.3s ease forwards;
 }
@@ -1340,6 +1302,14 @@ body.beta-page.beta-queue-open {
 
 .beta-queue-handle {
   width: 40px;
+}
+
+.beta-spotify-handle {
+  width: 42px;
+}
+
+.beta-queue-handle,
+.beta-spotify-handle {
   height: 4px;
   border-radius: 2px;
   background: var(--beta-border);
@@ -1349,13 +1319,81 @@ body.beta-page.beta-queue-open {
   flex-shrink: 0;
 }
 
-.beta-queue-header {
+.beta-queue-header,
+.beta-spotify-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.beta-queue-header {
   gap: 0.75rem;
   padding: 0.35rem 1rem 0.65rem;
   flex-shrink: 0;
+}
+
+.beta-spotify-header {
+  gap: 0.6rem;
+  padding: 0.25rem 0.85rem 0.5rem;
+}
+
+.beta-queue-list,
+.beta-spotify-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.beta-queue-list {
+  overscroll-behavior: contain;
+  padding: 0.25rem 0.65rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  -webkit-overflow-scrolling: touch;
+}
+
+.beta-spotify-list {
+  padding: 0.25rem 0.7rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.beta-queue-row,
+.beta-spotify-row {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.beta-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.45rem;
+  margin-bottom: 2px;
+  border-radius: var(--beta-radius-soft);
+  background: transparent;
+}
+
+.beta-spotify-row {
+  padding: 0.5rem 0.55rem;
+  background: #151515;
+  color: #c4c4c4;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.beta-queue-row--current {
+  background: var(--beta-hover-bg-panel);
+  border-color: var(--beta-border);
+}
+
+.beta-spotify-row--selected {
+  border-color: color-mix(in srgb, var(--channel-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--channel-accent) 10%, transparent);
+  color: #fff;
 }
 
 .beta-queue-title {
@@ -1373,41 +1411,17 @@ body.beta-page.beta-queue-open {
 }
 
 .beta-queue-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--beta-text-secondary);
-  cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: transparent;
 }
 
 .beta-queue-icon-btn:hover {
   color: var(--beta-text);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.beta-queue-icon-btn:focus-visible {
-  outline: 2px solid var(--beta-left);
-  outline-offset: 2px;
+  background: var(--beta-hover-bg-panel);
 }
 
 .beta-queue-icon-btn.beta-queue-icon--active {
-  color: var(--beta-text);
-}
-
-.beta-queue-panel[data-channel="left"] .beta-queue-icon-btn.beta-queue-icon--active {
-  color: var(--beta-left);
-}
-
-.beta-queue-panel[data-channel="right"] .beta-queue-icon-btn.beta-queue-icon--active {
-  color: var(--beta-right);
+  color: var(--channel-accent);
 }
 
 .beta-queue-toolbar {
@@ -1423,8 +1437,8 @@ body.beta-page.beta-queue-open {
   font-family: inherit;
   font-size: 0.82rem;
   padding: 0.35rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid var(--beta-border);
+  border-radius: var(--beta-radius-soft);
+  border: var(--beta-stroke);
   background: transparent;
   color: var(--beta-text-secondary);
   cursor: pointer;
@@ -1432,7 +1446,6 @@ body.beta-page.beta-queue-open {
 
 .beta-queue-clear-btn:hover {
   color: var(--beta-text);
-  border-color: var(--beta-text-secondary);
 }
 
 .beta-queue-empty {
@@ -1452,31 +1465,6 @@ body.beta-page.beta-queue-open {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.45;
-}
-
-.beta-queue-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.25rem 0.65rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-  -webkit-overflow-scrolling: touch;
-}
-
-.beta-queue-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.45rem;
-  margin-bottom: 2px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-}
-
-.beta-queue-row--current {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--beta-border);
 }
 
 .beta-queue-row--dragging {
@@ -1560,7 +1548,6 @@ body.beta-page.beta-queue-open {
 
 .beta-queue-row-action:hover {
   color: var(--beta-text);
-  border-color: var(--beta-text-secondary);
 }
 
 .beta-queue-row-handle {
@@ -1593,7 +1580,6 @@ body.beta-page.beta-queue-open {
     background: rgba(0, 0, 0, 0.35);
   }
 
-  /* Drawer: no bottom-sheet slide animation */
   .beta-queue-root--drawer:not([hidden]) .beta-queue-panel {
     animation: none;
   }
@@ -1606,7 +1592,7 @@ body.beta-page.beta-queue-open {
     width: min(360px, calc(100vw - 1rem));
     max-height: none;
     border-radius: var(--beta-radius);
-    border: 1px solid var(--beta-border);
+    border: var(--beta-stroke);
     border-top: 1px solid var(--beta-border);
     box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
   }
@@ -1619,7 +1605,7 @@ body.beta-page.beta-queue-open {
     width: min(360px, calc(100vw - 1rem));
     max-height: none;
     border-radius: var(--beta-radius);
-    border: 1px solid var(--beta-border);
+    border: var(--beta-stroke);
     border-top: 1px solid var(--beta-border);
     box-shadow: 8px 0 32px rgba(0, 0, 0, 0.4);
   }
@@ -1638,24 +1624,15 @@ body.beta-page.beta-spotify-open {
 }
 
 .beta-spotify-root {
-  position: fixed;
-  inset: 0;
   z-index: 10001;
-  isolation: isolate;
-  pointer-events: none;
-}
-
-.beta-spotify-root:not([hidden]) {
-  pointer-events: auto;
 }
 
 .beta-spotify-backdrop {
-  position: absolute;
-  inset: 0;
   background: rgba(0, 0, 0, 0.6);
 }
 
 .beta-spotify-panel {
+  --channel-accent: var(--beta-left);
   position: absolute;
   left: 50%;
   width: min(420px, calc(100vw - 1.1rem));
@@ -1673,6 +1650,10 @@ body.beta-page.beta-spotify-open {
   box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.55);
 }
 
+.beta-spotify-panel[data-channel="right"] {
+  --channel-accent: var(--beta-right);
+}
+
 .beta-spotify-root:not([hidden]) .beta-spotify-panel {
   animation: beta-spotify-sheet-in 0.28s ease forwards;
 }
@@ -1686,25 +1667,6 @@ body.beta-page.beta-spotify-open {
     transform: translate(-50%, 0);
     opacity: 1;
   }
-}
-
-.beta-spotify-handle {
-  width: 42px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--beta-border);
-  align-self: center;
-  margin-top: 0.5rem;
-  margin-bottom: 0.35rem;
-  flex-shrink: 0;
-}
-
-.beta-spotify-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.25rem 0.85rem 0.5rem;
 }
 
 .beta-spotify-title {
@@ -1745,19 +1707,11 @@ body.beta-page.beta-spotify-open {
 .beta-spotify-icon-btn {
   width: 36px;
   height: 36px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--beta-text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
 
 .beta-spotify-icon-btn:hover {
   color: var(--beta-text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--beta-hover-bg-panel);
 }
 
 .beta-spotify-actions {
@@ -1772,10 +1726,10 @@ body.beta-page.beta-spotify-open {
   align-items: center;
   justify-content: center;
   gap: 0.34rem;
-  border: 1px solid var(--beta-border);
+  border: var(--beta-stroke);
   background: #191919;
   color: #e5e5e5;
-  border-radius: 999px;
+  border-radius: var(--beta-radius-pill);
   padding: 0.36rem 0.52rem;
   font: inherit;
   font-size: 0.71rem;
@@ -1793,12 +1747,18 @@ body.beta-page.beta-spotify-open {
 
 .beta-spotify-btn:disabled {
   opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .beta-spotify-btn:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.24);
   color: #fff;
+}
+
+.beta-page .beta-tool-btn:hover,
+.beta-page .beta-swap-tab:hover,
+.beta-queue-clear-btn:hover,
+.beta-queue-row-action:hover {
+  border-color: var(--beta-text-secondary);
 }
 
 .beta-spotify-hint {
@@ -1813,44 +1773,8 @@ body.beta-page.beta-spotify-open {
   font-size: 0.75rem;
 }
 
-.beta-spotify-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0.25rem 0.7rem 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.22rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.beta-spotify-row {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 0.5rem 0.55rem;
-  background: #151515;
-  color: #c4c4c4;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 0.14rem;
-}
-
 .beta-spotify-row:hover {
   background: #1d1d1d;
-  color: #fff;
-}
-
-.beta-spotify-panel[data-channel="left"] .beta-spotify-row--selected {
-  border-color: rgba(167, 139, 250, 0.35);
-  background: rgba(167, 139, 250, 0.1);
-  color: #fff;
-}
-
-.beta-spotify-panel[data-channel="right"] .beta-spotify-row--selected {
-  border-color: rgba(234, 88, 12, 0.35);
-  background: rgba(234, 88, 12, 0.1);
   color: #fff;
 }
 
@@ -1876,8 +1800,8 @@ body.beta-page.beta-spotify-open {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border: 1px solid var(--beta-border);
-  border-radius: 999px;
+  border: var(--beta-stroke);
+  border-radius: var(--beta-radius-pill);
   background: #1db954;
   color: #08120b;
   font: inherit;
@@ -1893,7 +1817,6 @@ body.beta-page.beta-spotify-open {
 
 .beta-spotify-play-btn:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 @media (max-width: 760px) {
@@ -1921,11 +1844,20 @@ body.beta-page.beta-spotify-open {
     }
   }
 
-  .beta-spotify-panel[data-channel="left"] .beta-spotify-row--selected,
-  .beta-spotify-panel[data-channel="right"] .beta-spotify-row--selected {
+  .beta-spotify-row--selected {
     border-color: rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.06);
     box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.35);
   }
+}
+
+.beta-page .beta-tab:focus-visible,
+.beta-page .beta-tool-btn:focus-visible,
+.beta-page .beta-icon-btn:focus-visible,
+.beta-page .beta-swap-tab:focus-visible,
+.beta-page .beta-queue-icon-btn:focus-visible,
+.beta-page .beta-spotify-icon-btn:focus-visible {
+  outline: var(--beta-focus-ring);
+  outline-offset: 2px;
 }
 
