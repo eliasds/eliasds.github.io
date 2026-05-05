@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="no-js">
   <head>
-    <script src="src/analytics.js"></script>
     <script>
       document.documentElement.classList.remove("no-js");
     </script>
@@ -541,18 +540,6 @@
         });
       });
 
-      // Anonymous click stats (no cookies, no user identifiers).
-      if (window.dicoticAnalytics) {
-        window.dicoticAnalytics.bindAnchorClicks({
-          selector: 'a[href*="apps.apple.com"], a[href^="mailto:"]',
-          context: "cta",
-        });
-        window.dicoticAnalytics.bindAnchorClicks({
-          selector: ".main-nav a, .footer-links a, .brand",
-          context: "navigation",
-        });
-        window.dicoticAnalytics.bindVideoPlays("video.video-placeholder", "tutorials");
-      }
     </script>
   </body>
 </html>

@@ -100,7 +100,6 @@
       </div>
     </main>
 
-    <script src="src/analytics.js"></script>
     <script>
       const startTime = Date.now();
 
@@ -108,30 +107,10 @@
         const honeypot = document.getElementById("phone_number").value;
         const timeElapsed = Date.now() - startTime;
 
-        if (window.dicoticAnalytics) {
-          window.dicoticAnalytics.trackEvent("form_submit_attempt", {
-            context: "mailing_list",
-            element: "mailing-form",
-          });
-        }
-
         // Block bots (honeypot filled OR too fast)
         if (honeypot || timeElapsed < 1500) {
-          if (window.dicoticAnalytics) {
-            window.dicoticAnalytics.trackEvent("form_submit_blocked", {
-              context: "mailing_list",
-              element: honeypot ? "honeypot" : "too_fast",
-            });
-          }
           window.location.href = "thank-you.html";
           return false;
-        }
-
-        if (window.dicoticAnalytics) {
-          window.dicoticAnalytics.trackEvent("form_submit_passed", {
-            context: "mailing_list",
-            element: "google_forms_target",
-          });
         }
 
         // Legit submission → redirect after slight delay
@@ -140,13 +119,6 @@
         }, 500);
 
         return true;
-      }
-
-      if (window.dicoticAnalytics) {
-        window.dicoticAnalytics.bindAnchorClicks({
-          selector: ".legal-back-link",
-          context: "mailing_list",
-        });
       }
     </script>
   </body>
