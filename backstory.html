@@ -52,6 +52,15 @@
         </section>
       </div>
     </main>
+    <script src="src/analytics.js"></script>
+    <script>
+      if (window.dicoticAnalytics) {
+        window.dicoticAnalytics.bindAnchorClicks({
+          selector: ".legal-back-link",
+          context: "backstory_page",
+        });
+      }
+    </script>
   </body>
 </html>
 

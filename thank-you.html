@@ -48,5 +48,14 @@
         </section>
       </div>
     </main>
+    <script src="src/analytics.js"></script>
+    <script>
+      if (window.dicoticAnalytics) {
+        window.dicoticAnalytics.bindAnchorClicks({
+          selector: ".legal-back-link, .btn.btn-primary",
+          context: "mailing_thank_you",
+        });
+      }
+    </script>
   </body>
 </html>
