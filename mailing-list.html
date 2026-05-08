@@ -30,19 +30,34 @@
           </p>
         </header>
 
+        <!-- Hidden iframe for silent submission -->
+        <iframe name="hidden_iframe" style="display: none;"></iframe>
+
         <form
           class="mailing-form"
-          action="https://formspree.io/f/xjgalbzk"
+          action="https://docs.google.com/forms/d/e/1FAIpQLSeP2akVgiXygHPQDdrEaNfh5xmDexKQLyDse47u38-w9UYIoA/formResponse"
           method="POST"
+          target="hidden_iframe"
+          onsubmit="return handleSubmit(event)"
         >
-          <input type="hidden" name="_subject" value="dicotic mailing list signup" />
+          <!-- Honeypot field -->
+          <div style="position: absolute; left: -9999px;">
+            <label for="phone_number">Phone</label>
+            <input
+              id="phone_number"
+              type="text"
+              name="phone_number"
+              tabindex="-1"
+              autocomplete="off"
+            />
+          </div>
 
           <div class="form-field">
             <label for="mailing-email">Your email</label>
             <input
               id="mailing-email"
               type="email"
-              name="email"
+              name="entry.1258187363"
               required
               autocomplete="email"
               placeholder="you@example.com"
@@ -50,21 +65,61 @@
           </div>
 
           <div class="form-field">
-            <label for="mailing-message">Message <span class="form-optional">(optional)</span></label>
+            <label for="mailing-message">
+              Message <span class="form-optional">(optional)</span>
+            </label>
             <textarea
               id="mailing-message"
-              name="message"
+              name="entry.633651603"
               rows="4"
               placeholder="Anything you’d like us to know—use cases, feature ideas, or just hello."
             ></textarea>
           </div>
 
-          <button type="submit" class="btn btn-primary mailing-form-submit">Subscribe</button>
+          <div class="form-field">
+            <label for="mailing-consent">
+              <input
+                id="mailing-consent"
+                type="checkbox"
+                name="entry.1550867675"
+                value="I agree to receive dicotic updates via email."
+                required
+              />
+              I agree to receive dicotic updates via email.
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary mailing-form-submit">
+            Subscribe
+          </button>
+
           <p class="mailing-form-note">
-            We’ll only use your email for dicotic-related updates. You can unsubscribe anytime.
+            By submitting, you agree that your email may be stored for sending updates.
           </p>
         </form>
       </div>
     </main>
+
+    <script>
+      const startTime = Date.now();
+
+      function handleSubmit(e) {
+        const honeypot = document.getElementById("phone_number").value;
+        const timeElapsed = Date.now() - startTime;
+
+        // Block bots (honeypot filled OR too fast)
+        if (honeypot || timeElapsed < 1500) {
+          window.location.href = "thank-you.html";
+          return false;
+        }
+
+        // Legit submission → redirect after slight delay
+        setTimeout(() => {
+          window.location.href = "thank-you.html";
+        }, 500);
+
+        return true;
+      }
+    </script>
   </body>
 </html>
