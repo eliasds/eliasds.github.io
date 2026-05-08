@@ -16,39 +16,70 @@
     />
     <link rel="stylesheet" href="../css/styles.css" />
     <style>
-      .about-intro {
-        margin-bottom: 2rem;
+      .legal-section {
+        border-left: 1px solid rgba(148, 163, 184, 0.14);
+        padding-left: 1.45rem;
       }
 
-      .about-core-message {
-        margin: 1.25rem 0 0;
-        padding: 1rem 1.1rem;
-        border-left: 3px solid rgba(124, 58, 237, 0.85);
-        border-radius: 0.55rem;
-        background: rgba(15, 23, 42, 0.55);
+      .about-intro {
+        margin-bottom: 2.2rem;
+      }
+
+      .leitmotif {
+        margin: 1.5rem 0;
+        padding: 1.2rem 1.2rem;
+        border-left: 3px solid rgba(124, 58, 237, 0.9);
+        background: rgba(15, 23, 42, 0.6);
+        border-radius: 0.6rem;
         font-family: "Space Grotesk", system-ui, sans-serif;
-        font-size: 1.08rem;
+        font-size: 1.15rem;
         letter-spacing: 0.01em;
-        color: #e5e7eb;
+        color: #f3f4f6;
+        font-weight: 500;
       }
 
       .about-block {
-        margin-top: 2rem;
-        padding-top: 1.65rem;
+        margin-top: 2.25rem;
+        padding-top: 1.85rem;
         border-top: 1px solid rgba(148, 163, 184, 0.22);
       }
 
       .about-block h2 {
         margin-top: 0;
+        margin-bottom: 1rem;
+      }
+
+      .about-intro p,
+      .about-block p {
+        max-width: 40rem;
+        font-size: 1.02rem;
+        line-height: 1.75;
+      }
+
+      .about-intro p + p,
+      .about-block p + p {
+        margin-top: 1rem;
+      }
+
+      .about-anchor {
+        margin-top: 1.1rem;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        font-size: 1.04rem;
+        font-weight: 500;
+        color: #e7eaf0;
       }
 
       .about-callout {
-        margin: 1rem 0 0;
+        margin: 1.2rem 0 0.5rem;
         padding: 0.85rem 1rem;
         border-radius: 0.7rem;
         border: 1px solid rgba(148, 163, 184, 0.3);
         background: rgba(15, 23, 42, 0.5);
         color: #cdd2dc;
+      }
+
+      .about-support {
+        color: #ccd2dc;
       }
 
       .social-icons {
@@ -91,52 +122,66 @@
         height: 1.2rem;
         display: block;
       }
+
+      .about-page-footer {
+        margin-top: 3rem;
+      }
     </style>
   </head>
   <body>
-    <main class="legal-main">
-      <div class="container legal-container">
-        <a href="../index.html" class="legal-back-link">← Back to dicotic home</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="../index.html" class="brand">
+          <img class="brand-mark" src="../img/icon.png" alt="dicotic" width="32" height="32" />
+          <span class="brand-text">dicotic</span>
+        </a>
+        <div class="header-cta">
+          <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-ghost">Get the app</a>
+        </div>
+      </div>
+    </header>
 
+    <main id="top" class="legal-main">
+      <div class="container legal-container">
         <header class="legal-header">
           <h1>About dicotic</h1>
         </header>
 
         <section class="legal-section">
           <div class="about-intro">
-            <p>I think of everything as a story.</p>
+            <p class="about-anchor">I think of everything as a story.</p>
 
-            <p>
+            <p class="about-anchor">
                 Attention is not linear. It is layered, shifting, and often capable of holding more than we tend to assume at once.
             </p>
 
-            <p>dicotic began from a simple tension:</p>
+            <p class="about-support">dicotic began from a simple tension:</p>
 
-            <p class="about-core-message">music in one ear, a story in the other.</p>
+            <p class="leitmotif">music in one ear, a story in the other.</p>
           </div>
 
           <div class="about-block">
             <h2>Origin</h2>
 
-            <p>
+            <p class="about-support">
               In 2023, while running through the hills of Berkeley, I found myself
               frustrated by a simple constraint. Do I use this time to listen to music or stories?
             </p>
 
-            <p>
+            <p class="about-support">
               Music gave momentum and emotion. Audiobooks carried thought and
               structure. But they were separated by design, never allowed to
               coexist.
             </p>
 
-            <p>
+            <p class="about-support">
               I began experimenting with a different approach. An old iPod
               nano, two earbuds, and a simple division:
             </p>
 
-            <p class="about-callout">music in one ear, a story in the other.</p>
+            <p class="about-callout leitmotif">music in one ear, a story in the other.</p>
 
-            <p>
+            <p class="about-support">
               The experience was not a split. It was a layering. The two streams
               did not cancel each other - they formed something new in between.
               What began as an experiment quickly became a way of moving through
@@ -148,51 +193,51 @@
           <div class="about-block">
             <h2>Building</h2>
 
-            <p>That experiment did not stay contained to running.</p>
+            <p class="about-support">That experiment did not stay contained to running.</p>
 
-            <p>It followed me into everyday listening - work, movement, silence.</p>
+            <p class="about-support">It followed me into everyday listening - work, movement, silence.</p>
 
-            <p>
+            <p class="about-support">
               Over time, it became clear this was not just a workaround. It was a
               different way of treating attention itself.
             </p>
 
-            <p>
+            <p class="about-support">
               With help from my children - Sivan, Matan, and Aviva - I began
               building dicotic as a small application exploring that idea more
               formally.
             </p>
 
-            <p>It was released on March 20, 2026.</p>
+            <p class="about-anchor">It was released on March 20, 2026.</p>
           </div>
 
           <div class="about-block">
             <h2>What it became</h2>
 
-            <p>
+            <p class="about-support">
               dicotic is a way of holding two streams at once: music, podcasts,
               audiobooks, lectures, language learning... layered together in
               a way that feels natural rather than fragmented.
             </p>
 
-            <p>
+            <p class="about-support">
               Not to divide attention, but to let it overlap without breaking
               coherence.
             </p>
 
-            <p>Or more simply: a single mind listening in two directions at once.</p>
+            <p class="about-anchor">Or more simply: a single mind listening in two directions at once.</p>
           </div>
 
           <div class="about-block">
             <h2>Continuity</h2>
 
-            <p>dicotic is intentionally small.</p>
+            <p class="about-anchor">dicotic is intentionally small.</p>
 
-            <p>
+            <p class="about-support">
               It is built slowly, independently, without a larger system behind it.
             </p>
 
-            <p>
+            <p class="about-support">
               It continues through the people who find a way of listening in it
               that feels familiar.
             </p>
@@ -201,7 +246,7 @@
           <div class="about-block">
             <h2>Support</h2>
 
-            <p>
+            <p class="about-support">
               If dicotic has changed the way listening feels, your support can help it
               continue.
             </p>
@@ -278,7 +323,7 @@
           </div>
 
           <div class="about-block">
-          <p>
+          <p class="about-support">
             Privacy remains simple: dicotic does not track listening behavior or
             collect personal data beyond what is required for the app to
             function.
@@ -291,5 +336,30 @@
         </section>
       </div>
     </main>
+
+    <footer class="site-footer about-page-footer">
+      <div class="container footer-inner">
+        <a href="/" class="footer-brand">
+          <img class="brand-mark" src="../img/icon.png" alt="dicotic" width="32" height="32" />
+          <span class="brand-text">dicotic</span>
+        </a>
+        <div class="footer-links">
+          <a href="/try">Try</a>
+          <a href="/about">About</a>
+          <a href="https://www.buymeacoffee.com/dicotic">Support</a>
+          <a href="/privacy.html">Privacy</a>
+        </div>
+        <p class="footer-meta">
+          &copy; <span id="year"></span> dicotic. Built for humans.
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      const yearSpan = document.getElementById("year");
+      if (yearSpan) {
+        yearSpan.textContent = new Date().getFullYear().toString();
+      }
+    </script>
   </body>
 </html>

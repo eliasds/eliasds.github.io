@@ -15,12 +15,35 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      .legal-main {
+        flex: 1 0 auto;
+        min-height: 0;
+        padding-bottom: 1.5rem;
+      }
+    </style>
   </head>
   <body>
-    <main class="legal-main">
-      <div class="container legal-container">
-        <a href="index.html" class="legal-back-link">← Back to dicotic home</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="index.html" class="brand">
+          <img class="brand-mark" src="img/icon.png" alt="dicotic" width="32" height="32" />
+          <span class="brand-text">dicotic</span>
+        </a>
+        <div class="header-cta">
+          <a href="https://apps.apple.com/us/app/dicotic/id6760433267" class="btn btn-ghost">Get the app</a>
+        </div>
+      </div>
+    </header>
 
+    <main id="top" class="legal-main">
+      <div class="container legal-container">
         <header class="legal-header">
           <h1>Privacy at dicotic</h1>
           <p class="legal-meta">Effective date: May 5, 2026</p>
@@ -54,36 +77,61 @@
             If dicotic ever changes how data is handled, this page and the effective date will be updated.
           </p>
 
+          <h4>
+            Contact:
+            <svg
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              style="width: 1em; height: 1em; vertical-align: -0.12em"
+            >
+              <path
+                d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5v-9Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="m5 8 7 5 7-5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <a href="mailto:dicoticListening@gmail.com">dicoticListening@gmail.com</a>
+          </h4>
 
-          <h4>Contact</h4>
-
-          <ul>
-            <li>
-              <h4>
-                Email: <a href="mailto:dicoticListening@gmail.com">dicoticListening@gmail.com</a>
-              </h4>
-            </li>
-            <li>
-              <h4>
-                YouTube:
-                <a href="https://youtube.com/@dan_in_nature" target="_blank" rel="noopener noreferrer">
-                  youtube.com/@dan_in_nature
-                </a>
-              </h4>
-            </li>
-            <li>
-              <h4>
-                Spotify:
-                <a href="https://open.spotify.com/show/6FTpAgK3XmbV8jXsADY6Id?si=cb01e6f1670648ca" target="_blank" rel="noopener noreferrer">
-                  Dan in Nature
-                </a>
-              </h4>
-            </li>
-          </ul>
 
         </section>
       </div>
     </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a href="/" class="footer-brand">
+          <img class="brand-mark" src="img/icon.png" alt="dicotic" width="32" height="32" />
+          <span class="brand-text">dicotic</span>
+        </a>
+        <div class="footer-links">
+          <a href="/try">Try</a>
+          <a href="/about">About</a>
+          <a href="https://www.buymeacoffee.com/dicotic">Support</a>
+          <a href="/privacy.html">Privacy</a>
+        </div>
+        <p class="footer-meta">
+          &copy; <span id="year"></span> dicotic. Built for humans.
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      const yearSpan = document.getElementById("year");
+      if (yearSpan) {
+        yearSpan.textContent = new Date().getFullYear().toString();
+      }
+    </script>
   </body>
 </html>
 
