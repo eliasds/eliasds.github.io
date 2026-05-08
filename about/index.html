@@ -3,195 +3,293 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>About — dicotic</title>
+    <title>dicotic – About</title>
     <meta
       name="description"
-      content="About dicotic — two streams. one mind. A way of listening shaped by lived experience and a simple idea about attention."
+      content="About dicotic — two streams. one mind. A way of listening shaped by lived experience and attention as layered experience."
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/styles.css" />
     <style>
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
-          Helvetica, Arial, sans-serif;
-        background: #ffffff;
-        color: #111;
-        line-height: 1.65;
+      .about-intro {
+        margin-bottom: 2rem;
       }
 
-      .container {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 64px 24px;
+      .about-core-message {
+        margin: 1.25rem 0 0;
+        padding: 1rem 1.1rem;
+        border-left: 3px solid rgba(124, 58, 237, 0.85);
+        border-radius: 0.55rem;
+        background: rgba(15, 23, 42, 0.55);
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        font-size: 1.08rem;
+        letter-spacing: 0.01em;
+        color: #e5e7eb;
       }
 
-      h1 {
-        font-size: 28px;
-        margin-bottom: 28px;
-        font-weight: 600;
-        letter-spacing: -0.02em;
+      .about-block {
+        margin-top: 2rem;
+        padding-top: 1.65rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.22);
       }
 
-      h2 {
-        font-size: 18px;
-        margin-top: 40px;
-        margin-bottom: 12px;
-        font-weight: 600;
+      .about-block h2 {
+        margin-top: 0;
       }
 
-      p {
-        margin: 14px 0;
-        font-size: 16px;
+      .about-callout {
+        margin: 1rem 0 0;
+        padding: 0.85rem 1rem;
+        border-radius: 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(15, 23, 42, 0.5);
+        color: #cdd2dc;
       }
 
-      a {
-        color: #111;
-        text-decoration: underline;
+      .social-icons {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        margin: 0.4rem 0 1.1rem;
       }
 
-      .divider {
-        margin: 48px 0;
-        border-top: 1px solid #eee;
+      .social-icon-link {
+        width: 2.4rem;
+        height: 2.4rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.6);
+        color: #b4b9c2;
+        transition: transform 0.15s ease-out, color 0.15s ease-out,
+          border-color 0.15s ease-out, background 0.15s ease-out;
       }
 
-      .muted {
-        color: #666;
+      .social-icon-link:hover,
+      .social-icon-link:focus-visible {
+        transform: translateY(-1px);
+        color: #e5e7eb;
+        border-color: rgba(229, 231, 235, 0.7);
+        background: rgba(30, 41, 59, 0.9);
       }
 
-      .links a {
+      .social-icon-link:focus-visible {
+        outline: 2px solid rgba(124, 58, 237, 0.8);
+        outline-offset: 2px;
+      }
+
+      .social-icon-link img,
+      .social-icon-link svg {
+        width: 1.2rem;
+        height: 1.2rem;
         display: block;
-        margin: 6px 0;
       }
     </style>
   </head>
-
   <body>
-    <div class="container">
-      <h1>About dicotic</h1>
+    <main class="legal-main">
+      <div class="container legal-container">
+        <a href="../index.html" class="legal-back-link">← Back to dicotic home</a>
 
-      <p>
-        I think of everything as a story.
-      </p>
+        <header class="legal-header">
+          <h1>About dicotic</h1>
+        </header>
 
-      <p>
-        Attention is not linear. It is layered, shifting, and often capable of
-        holding more than we tend to assume at once.
-      </p>
+        <section class="legal-section">
+          <div class="about-intro">
+            <p>I think of everything as a story.</p>
 
-      <p>
-        dicotic began from a simple tension:
-      </p>
+            <p>
+                Attention is not linear. It is layered, shifting, and often capable of holding more than we tend to assume at once.
+            </p>
 
-      <p><strong>two streams. one mind.</strong></p>
+            <p>dicotic began from a simple tension:</p>
 
-      <h2>Origin</h2>
+            <p class="about-core-message">music in one ear, a story in the other.</p>
+          </div>
 
-      <p>
-        In 2023, while running through the hills of Berkeley, I found myself
-        frustrated by a simple constraint. I had to choose between listening to
-        inspiring music or listening to important audiobooks.
-      </p>
+          <div class="about-block">
+            <h2>Origin</h2>
 
-      <p>
-        Music carried emotion and momentum. Audiobooks carried ideas that
-        mattered. But they existed in separate moments, competing for the same
-        attention.
-      </p>
+            <p>
+              In 2023, while running through the hills of Berkeley, I found myself
+              frustrated by a simple constraint. Do I use this time to listen to music or stories?
+            </p>
 
-      <p>
-        I started experimenting with a different approach. An old iPod nano,
-        two sets of wireless earbuds, and a simple split: music in one ear,
-        audiobook in the other.
-      </p>
+            <p>
+              Music gave momentum and emotion. Audiobooks carried thought and
+              structure. But they were separated by design, never allowed to
+              coexist.
+            </p>
 
-      <p>
-        What began as an experiment quickly became a way of moving through
-        everyday life. Running, thinking, working—listening stopped being
-        singular.
-      </p>
+            <p>
+              I began experimenting with a different approach. An old iPod
+              nano, two earbuds, and a simple division:
+            </p>
 
-      <p>
-        The idea stayed with me long after the runs ended.
-      </p>
+            <p class="about-callout">music in one ear, a story in the other.</p>
 
-      <h2>Building</h2>
+            <p>
+              The experience was not a split. It was a layering. The two streams
+              did not cancel each other - they formed something new in between.
+              What began as an experiment quickly became a way of moving through
+              everyday life. Running, thinking, working... listening stopped being
+              singular.
+            </p>
+          </div>
 
-      <p>
-        Over time, it became clear that this wasn’t just a personal workaround.
-        It was something others might also find useful.
-      </p>
+          <div class="about-block">
+            <h2>Building</h2>
 
-      <p>
-        With a little help from my children — Sivan, Matan, and Aviva — I began
-        building dicotic as an app and eventually released it on March 20,
-        2026.
-      </p>
+            <p>That experiment did not stay contained to running.</p>
 
-      <p>
-        What started as a small experiment in listening became a way of
-        exploring how attention can be held differently.
-      </p>
+            <p>It followed me into everyday listening - work, movement, silence.</p>
 
-      <h2>What it is</h2>
+            <p>
+              Over time, it became clear this was not just a workaround. It was a
+              different way of treating attention itself.
+            </p>
 
-      <p>
-        dicotic lets you listen to two streams at the same time — music,
-        podcasts, audiobooks, lectures, language learning — layered together in
-        a way that feels natural rather than fragmented.
-      </p>
+            <p>
+              With help from my children - Sivan, Matan, and Aviva - I began
+              building dicotic as a small application exploring that idea more
+              formally.
+            </p>
 
-      <p>
-        Not to divide attention, but to let it overlap without losing coherence.
-      </p>
+            <p>It was released on March 20, 2026.</p>
+          </div>
 
-      <h2>Continuity</h2>
+          <div class="about-block">
+            <h2>What it became</h2>
 
-      <p>
-        dicotic is intentionally small.
-      </p>
+            <p>
+              dicotic is a way of holding two streams at once: music, podcasts,
+              audiobooks, lectures, language learning... layered together in
+              a way that feels natural rather than fragmented.
+            </p>
 
-      <p>
-        It is built slowly, independently, and without a larger system behind
-        it.
-      </p>
+            <p>
+              Not to divide attention, but to let it overlap without breaking
+              coherence.
+            </p>
 
-      <p>
-        It continues through the people who find it useful enough to keep it
-        alive.
-      </p>
+            <p>Or more simply: a single mind listening in two directions at once.</p>
+          </div>
 
-      <div class="divider"></div>
+          <div class="about-block">
+            <h2>Continuity</h2>
 
-      <p>
-        If dicotic has helped you experience listening differently, you can
-        support its continued development.
-      </p>
+            <p>dicotic is intentionally small.</p>
 
-      <p>
-        ☕ <a href="https://www.buymeacoffee.com/dicotic" target="_blank"
-          >Buy me a coffee</a
-        >
-      </p>
+            <p>
+              It is built slowly, independently, without a larger system behind it.
+            </p>
 
-      <h2>Connect</h2>
+            <p>
+              It continues through the people who find a way of listening in it
+              that feels familiar.
+            </p>
+          </div>
 
-      <div class="links">
-        <a href="mailto:youremail@example.com">Email</a>
-        <a href="https://youtube.com">YouTube</a>
-        <a href="https://spotify.com">Spotify</a>
-        <a href="https://podcasts.apple.com">Apple Podcasts</a>
+          <div class="about-block">
+            <h2>Support</h2>
+
+            <p>
+              If dicotic has changed the way listening feels, your support can help it
+              continue.
+            </p>
+
+            <p>
+              <a
+                href="https://www.buymeacoffee.com/dicotic"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+              ☕ Buy me a coffee… or a tea 😌
+              </a>
+            </p>
+          </div>
+
+          <div class="about-block">
+            <h2>Connect</h2>
+
+            <div class="social-icons" aria-label="Contact and social links">
+              <a
+                class="social-icon-link"
+                href="mailto:dicoticListening@gmail.com"
+                aria-label="Email dicotic"
+                title="Email"
+              >
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path
+                    d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5v-9Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="m5 8 7 5 7-5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </a>
+              <a
+                class="social-icon-link"
+                href="https://youtube.com/@dan_in_nature"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Dan in Nature on YouTube"
+                title="YouTube"
+              >
+                <img src="https://cdn.simpleicons.org/youtube/b4b9c2" alt="" aria-hidden="true" />
+              </a>
+              <a
+                class="social-icon-link"
+                href="https://open.spotify.com/show/6FTpAgK3XmbV8jXsADY6Id?si=cb01e6f1670648ca"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Dan in Nature on Spotify"
+                title="Spotify"
+              >
+                <img src="https://cdn.simpleicons.org/spotify/b4b9c2" alt="" aria-hidden="true" />
+              </a>
+              <a
+                class="social-icon-link"
+                href="https://podcasts.apple.com/us/podcast/dan-in-nature/id1805280830"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Dan in Nature on Apple Podcasts"
+                title="Apple Podcasts"
+              >
+                <img src="https://cdn.simpleicons.org/applepodcasts/b4b9c2" alt="" aria-hidden="true" />
+              </a>
+            </div>
+          </div>
+
+          <div class="about-block">
+          <p>
+            Privacy remains simple: dicotic does not track listening behavior or
+            collect personal data beyond what is required for the app to
+            function.
+          </p>
+
+          <p>
+            <a href="../privacy.html">Full privacy policy</a>
+          </p>
+          </div>
+        </section>
       </div>
-
-      <div style="margin-top: 40px;" class="muted">
-        <p>
-          Privacy is simple here: dicotic does not track listening behavior or
-          collect personal data beyond what is required to operate the app.
-        </p>
-
-        <p>
-          <a href="/privacy">Full privacy policy</a>
-        </p>
-      </div>
-    </div>
+    </main>
   </body>
 </html>
