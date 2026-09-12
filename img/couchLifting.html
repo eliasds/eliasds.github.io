@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Couch Lifting Load Distribution Demonstrator</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-orange: #fb923c;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            color: var(--accent-blue);
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        @media (max-width: 850px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .visualizer-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        canvas {
+            width: 100%;
+            height: 480px;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            border-radius: 8px;
+        }
+
+        .controls-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .control-label span.value {
+            color: var(--accent-blue);
+            font-family: monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-blue);
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .stat-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-box.person-a {
+            border-top: 4px solid var(--accent-blue);
+        }
+
+        .stat-box.person-b {
+            border-top: 4px solid var(--accent-orange);
+        }
+
+        .stat-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 4px 0;
+            font-family: monospace;
+        }
+
+        .stat-percent {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .warning-banner {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-align: center;
+            display: none;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .warning-banner.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Couch Lifting Load Distribution Demonstrator</h1>
+        <p>Observe how raising one side shifts the center of mass toward the lower lifter.</p>
+    </header>
+
+    <div class="container">
+        <div class="visualizer-card">
+            <canvas id="simCanvas"></canvas>
+
+            <div class="stats-grid">
+                <div class="stat-box person-a">
+                    <div class="stat-title">Person A (Left)</div>
+                    <div class="stat-value" id="dispWeightA">100 lbs</div>
+                    <div class="stat-percent" id="dispPctA">50.0% of total</div>
+                </div>
+                <div class="stat-box person-b">
+                    <div class="stat-title">Person B (Right)</div>
+                    <div class="stat-value" id="dispWeightB">100 lbs</div>
+                    <div class="stat-percent" id="dispPctB">50.0% of total</div>
+                </div>
+            </div>
+
+            <div class="warning-banner" id="warningBanner">
+                ⚠️ Center of mass moved past the lower support point! The top lifter must pull DOWN to balance.
+            </div>
+        </div>
+
+        <div class="controls-card">
+            <h3>Controls</h3>
+            
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Person A Height (Left)</span>
+                    <span class="value" id="valA">1.0 m</span>
+                </div>
+                <input type="range" id="heightA" min="0.0" max="3.2" step="0.05" value="1.0">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Person B Height (Right)</span>
+                    <span class="value" id="valB">1.0 m</span>
+                </div>
+                <input type="range" id="heightB" min="0.0" max="3.2" step="0.05" value="1.0">
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 2px 0;">
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Couch Weight</span>
+                    <span class="value" id="valWeight">200 lbs</span>
+                </div>
+                <input type="range" id="couchWeight" min="50" max="400" step="10" value="200">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Couch Length</span>
+                    <span class="value" id="valLength">2.2 m</span>
+                </div>
+                <input type="range" id="couchLength" min="1.0" max="3.0" step="0.1" value="2.2">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Couch Thickness/Height</span>
+                    <span class="value" id="valThickness">0.8 m</span>
+                </div>
+                <input type="range" id="couchThickness" min="0.2" max="1.2" step="0.05" value="0.8">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Inputs
+        const sliderA = document.getElementById('heightA');
+        const sliderB = document.getElementById('heightB');
+        const sliderWeight = document.getElementById('couchWeight');
+        const sliderLength = document.getElementById('couchLength');
+        const sliderThickness = document.getElementById('couchThickness');
+
+        // Displays
+        const valA = document.getElementById('valA');
+        const valB = document.getElementById('valB');
+        const valWeight = document.getElementById('valWeight');
+        const valLength = document.getElementById('valLength');
+        const valThickness = document.getElementById('valThickness');
+
+        const dispWeightA = document.getElementById('dispWeightA');
+        const dispWeightB = document.getElementById('dispWeightB');
+        const dispPctA = document.getElementById('dispPctA');
+        const dispPctB = document.getElementById('dispPctB');
+        const warningBanner = document.getElementById('warningBanner');
+
+        // Canvas Scale Factors
+        let canvasWidth, canvasHeight;
+        let pixelsPerMeter = 80; 
+        const floorYOffset = 40;
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function updateSliderLimits() {
+            const length = parseFloat(sliderLength.value);
+            const hA = parseFloat(sliderA.value);
+            const hB = parseFloat(sliderB.value);
+
+            const maxA = hB + length;
+            const maxB = hA + length;
+
+            sliderA.max = maxA.toFixed(2);
+            sliderB.max = maxB.toFixed(2);
+
+            if (hA > maxA) sliderA.value = maxA;
+            if (hB > maxB) sliderB.value = maxB;
+        }
+
+        function getSimValues() {
+            return {
+                hA: parseFloat(sliderA.value),
+                hB: parseFloat(sliderB.value),
+                weight: parseFloat(sliderWeight.value),
+                length: parseFloat(sliderLength.value),
+                thickness: parseFloat(sliderThickness.value)
+            };
+        }
+
+        function drawStickFigure(x, handY, color, label) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+
+            const pxHead = 10;
+            const groundY = canvasHeight - floorYOffset;
+
+            // Head
+            ctx.beginPath();
+            ctx.arc(x, Math.min(handY - pxHead - 5, groundY - 50), pxHead, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Body line to ground
+            const hipY = Math.min(handY + 40, groundY - 15);
+            ctx.beginPath();
+            ctx.moveTo(x, handY);
+            ctx.lineTo(x, hipY);
+            ctx.stroke();
+
+            // Legs
+            ctx.beginPath();
+            ctx.moveTo(x, hipY);
+            ctx.lineTo(x - 12, groundY);
+            ctx.moveTo(x, hipY);
+            ctx.lineTo(x + 12, groundY);
+            ctx.stroke();
+
+            // Label
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x, groundY + 22);
+
+            ctx.restore();
+        }
+
+        function drawForceArrow(x, y, forceLbs, color) {
+            if (Math.abs(forceLbs) < 0.1) return;
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 4;
+
+            const isDownward = forceLbs < 0;
+            const arrowLength = Math.min(Math.abs(forceLbs) * 0.4, 100);
+            const direction = isDownward ? 1 : -1; 
+            const endY = y + (arrowLength * direction);
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, endY);
+            ctx.stroke();
+
+            // Arrow head
+            const headSize = 8;
+            ctx.beginPath();
+            ctx.moveTo(x, endY);
+            ctx.lineTo(x - headSize, endY - (headSize * direction));
+            ctx.lineTo(x + headSize, endY - (headSize * direction));
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function draw() {
+            updateSliderLimits();
+            const sim = getSimValues();
+
+            // Update UI Labels
+            valA.textContent = `${sim.hA.toFixed(2)} m`;
+            valB.textContent = `${sim.hB.toFixed(2)} m`;
+            valWeight.textContent = `${sim.weight} lbs`;
+            valLength.textContent = `${sim.length.toFixed(1)} m`;
+            valThickness.textContent = `${sim.thickness.toFixed(2)} m`;
+
+            // Dynamic scaling for canvas height
+            const maxHeight = Math.max(sim.hA, sim.hB) + sim.thickness + 0.5;
+            pixelsPerMeter = Math.min(80, (canvasHeight - 100) / maxHeight);
+
+            // Clear Screen
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw Floor
+            const groundY = canvasHeight - floorYOffset;
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvasWidth, groundY);
+            ctx.stroke();
+
+            // Physical orientation calculations
+            const deltaH = sim.hB - sim.hA; 
+            const clampedDeltaH = Math.max(-sim.length, Math.min(sim.length, deltaH));
+            
+            // True tilt angle from horizontal
+            const theta = Math.asin(clampedDeltaH / sim.length);
+
+            // Horizontal distance between hands
+            const horizDistancePixels = sim.length * Math.cos(theta) * pixelsPerMeter;
+            const centerX = canvasWidth / 2;
+            
+            const pA_x = centerX - horizDistancePixels / 2;
+            const pB_x = centerX + horizDistancePixels / 2;
+
+            const pA_y = groundY - (sim.hA * pixelsPerMeter);
+            const pB_y = groundY - (sim.hB * pixelsPerMeter);
+
+            // Center of Mass Coordinates
+            const midBaseX = (pA_x + pB_x) / 2;
+            const midBaseY = (pA_y + pB_y) / 2;
+
+            // Perpendicular vector pointing UPWARDS out of the couch base
+            const perpX = -Math.sin(theta);
+            const perpY = -Math.cos(theta);
+
+            // Center of Mass in canvas space
+            const comX = midBaseX + (sim.thickness * pixelsPerMeter / 2) * perpX;
+            const comY = midBaseY + (sim.thickness * pixelsPerMeter / 2) * perpY;
+
+            // Statics calculation handling pure vertical state smoothly:
+            let fractionB, fractionA;
+            const cosTheta = Math.cos(theta);
+
+            if (Math.abs(cosTheta) < 0.0001) {
+                // Completely vertical case (90 degrees tilt)
+                if (sim.hB > sim.hA) {
+                    fractionA = 1.0;
+                    fractionB = 0.0;
+                } else {
+                    fractionA = 0.0;
+                    fractionB = 1.0;
+                }
+            } else {
+                // Continuous Torque Equilibrium:
+                const horizSpanMeters = sim.length * cosTheta;
+                const comOffsetFromAMeters = (sim.length / 2) * cosTheta - (sim.thickness / 2) * Math.sin(theta);
+                
+                fractionB = comOffsetFromAMeters / horizSpanMeters;
+                fractionA = 1.0 - fractionB;
+            }
+
+            let forceA = sim.weight * fractionA;
+            let forceB = sim.weight * fractionB;
+
+            // Update DOM Displays
+            dispWeightA.textContent = `${Math.round(forceA)} lbs`;
+            dispWeightB.textContent = `${Math.round(forceB)} lbs`;
+
+            const pctA = (fractionA * 100).toFixed(1);
+            const pctB = (fractionB * 100).toFixed(1);
+            dispPctA.textContent = `${pctA}% of total`;
+            dispPctB.textContent = `${pctB}% of total`;
+
+            // Toggle Warning Banner
+            if (fractionA < 0 || fractionB < 0) {
+                warningBanner.classList.add('active');
+            } else {
+                warningBanner.classList.remove('active');
+            }
+
+            // Draw Couch Body
+            ctx.save();
+            ctx.translate(pA_x, pA_y);
+            const canvasAngle = Math.atan2(pB_y - pA_y, pB_x - pA_x);
+            ctx.rotate(canvasAngle);
+
+            const pixelLength = sim.length * pixelsPerMeter;
+            const pixelThickness = sim.thickness * pixelsPerMeter;
+
+            ctx.fillStyle = '#0284c7';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.rect(0, 0, pixelLength, -pixelThickness);
+            ctx.fill();
+            ctx.stroke();
+
+            // Armrests
+            ctx.fillStyle = '#0369a1';
+            ctx.fillRect(0, 0, 20, -pixelThickness - 8);
+            ctx.fillRect(pixelLength - 20, 0, 20, -pixelThickness - 8);
+
+            ctx.restore();
+
+            // Draw Lifters
+            drawStickFigure(pA_x, pA_y, '#38bdf8', 'Person A');
+            drawStickFigure(pB_x, pB_y, '#fb923c', 'Person B');
+
+            // Draw Force Vectors
+            drawForceArrow(pA_x, pA_y, forceA, '#38bdf8');
+            drawForceArrow(pB_x, pB_y, forceB, '#fb923c');
+
+            // Draw Center of Mass Marker & Plumb Line
+            ctx.save();
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(comX, comY, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Plumb line down to floor
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(comX, comY);
+            ctx.lineTo(comX, groundY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText('Center of Mass', comX + 10, comY + 4);
+            ctx.restore();
+        }
+
+        // Event Listeners
+        [sliderA, sliderB, sliderWeight, sliderLength, sliderThickness].forEach(slider => {
+            slider.addEventListener('input', draw);
+        });
+
+        // Initial setup
+        resizeCanvas();
+    </script>
+</body>
+</html>
